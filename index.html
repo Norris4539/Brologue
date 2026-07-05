@@ -1,0 +1,1271 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#191012">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brologue">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>Brologue — Train. Track. Triumph.</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  :root{
+    --bg1:#191012; --bg2:#241316; --bg3:#2e1512;
+    --card:#241a1a; --card2:#2c1f1e; --border:#3c2a26; --border2:#4a332d;
+    --ink:#fff4ec; --sec:#a58b80; --dim:#6e5a51;
+    --ember1:#ff5f2e; --ember2:#ffb13d; --accent:#ff9d57; --hot:#ff7a35;
+    --grad:linear-gradient(90deg,#ff5f2e,#ffb13d);
+    --done:#9ecb7f; --sab:env(safe-area-inset-bottom,0px);
+  }
+  html,body{height:100%}
+  body{background:linear-gradient(180deg,var(--bg1),var(--bg2) 55%,var(--bg3)) fixed;color:var(--ink);
+    font-family:Inter,'Segoe UI',system-ui,-apple-system,sans-serif;overscroll-behavior-y:none}
+  button{font-family:inherit;border:0;background:none;color:inherit;cursor:pointer}
+  input,select,textarea{font-family:inherit}
+  #app{height:100dvh;display:flex;flex-direction:column;max-width:560px;margin:0 auto}
+  .screen{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  .scrolly{flex:1;overflow-y:auto;padding:18px 16px calc(20px + var(--sab));min-height:0}
+
+  /* app bar */
+  .app-bar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 4px}
+  .app-bar .title{font-size:20px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+  .brand{font-size:19px;font-weight:900;letter-spacing:1px;text-transform:uppercase;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .icon-btn{font-size:19px;padding:6px 8px;border-radius:9px;color:var(--sec)}
+  .icon-btn:active{background:rgba(255,255,255,.07)}
+
+  /* kick / heading */
+  .kick{color:#ff9d57;font-size:10.5px;letter-spacing:3px;font-weight:800;text-transform:uppercase}
+  .h1{font-size:27px;font-weight:900;text-transform:uppercase;letter-spacing:-.5px;line-height:1.06;margin-top:4px}
+  .meta{color:var(--sec);font-size:12.5px;margin-top:3px}
+  .sl{color:#8a7166;font-size:10px;letter-spacing:2.5px;font-weight:800;text-transform:uppercase;margin:18px 2px 8px}
+
+  /* motivation row */
+  .mot{display:flex;align-items:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .streak{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:999px;
+    font-size:11.5px;font-weight:800;background:var(--grad);color:#1c0f0a}
+  .streak.cold{background:var(--card);color:var(--sec);border:1px solid var(--border)}
+  .quote{color:#c9a795;font-size:12px;font-style:italic}
+
+  /* cards */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-top:12px}
+  .exrow{display:flex;justify-content:space-between;align-items:center;font-size:14px;padding:8px 0;border-bottom:1px solid #372623}
+  .exrow:last-child{border-bottom:0}
+  .exrow .set{font-weight:900;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;white-space:nowrap;margin-left:10px}
+  .cta{display:block;width:100%;background:var(--grad);color:#1c0f0a;text-align:center;font-weight:900;
+    letter-spacing:2.5px;font-size:13px;padding:15px;border-radius:12px;margin-top:14px;text-transform:uppercase;
+    box-shadow:0 8px 28px rgba(255,95,46,.35)}
+  .cta:active{transform:translateY(1px)}
+  .cta.ghost{background:var(--card);color:var(--accent);border:1px solid var(--border2);box-shadow:none}
+  .empty{color:var(--sec);font-size:13.5px;text-align:center;padding:22px 10px;line-height:1.6}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;border-radius:999px;font-size:12px;font-weight:700;
+    background:var(--card);border:1px solid var(--border);color:#e8d5c8}
+  .chip.on{background:var(--grad);color:#1c0f0a;border-color:transparent}
+  .chiprow{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}
+
+  /* calendar: segmented + bar (Dokit layout) */
+  .cal-seg{display:flex;background:var(--card);border:1px solid var(--border);border-radius:11px;padding:3px;margin:10px 16px 0}
+  .cal-seg button{flex:1;padding:8px 0;border-radius:8px;font-size:12.5px;font-weight:800;color:var(--sec);letter-spacing:.5px}
+  .cal-seg button.on{background:var(--grad);color:#1c0f0a}
+  .cal-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px}
+  .cal-side{display:flex;align-items:center;gap:6px}
+  .cal-step{font-size:21px;line-height:1;color:var(--accent);padding:4px 12px;border-radius:9px;background:var(--card);border:1px solid var(--border)}
+  .cal-per{font-size:13.5px;font-weight:800;color:var(--ink)}
+  .cal-today{font-size:11px;font-weight:800;letter-spacing:1px;color:#1c0f0a;background:var(--grad);padding:7px 12px;border-radius:9px;text-transform:uppercase}
+
+  /* time grid (day/week) */
+  .tg-scroll{flex:1;overflow-y:auto;min-height:0;padding:0 10px calc(90px + var(--sab))}
+  .tg-head{display:flex;position:sticky;top:0;z-index:5;background:var(--bg2)}
+  .tg-corner{width:44px;flex:none}
+  .tg-dayhead{flex:1;text-align:center;padding:7px 0 6px;border-bottom:1px solid var(--border)}
+  .tg-dayhead .dow{display:block;font-size:9.5px;font-weight:800;color:var(--dim);letter-spacing:1px}
+  .tg-dayhead .wd{display:inline-block;font-size:13px;font-weight:800;color:#d8c4b8;margin-top:2px;min-width:24px;line-height:24px;border-radius:50%}
+  .tg-dayhead.today .wd{background:var(--grad);color:#1c0f0a}
+  .tg-body{display:flex;position:relative}
+  .tg-gutter{width:44px;flex:none}
+  .tg-hour{height:48px;position:relative}
+  .tg-hour span{position:absolute;top:-7px;right:8px;font-size:9.5px;color:var(--dim)}
+  .tg-cols{flex:1;display:flex;position:relative;background-image:linear-gradient(to bottom,#33241f 1px,transparent 1px);background-size:100% 48px}
+  .tg-col{flex:1;position:relative;border-left:1px solid #2c1e1a;min-width:0}
+  .tg-event{position:absolute;border-radius:7px;padding:4px 6px;overflow:hidden;cursor:pointer;
+    background:linear-gradient(135deg,rgba(255,95,46,.28),rgba(255,177,61,.22));border:1px solid #ff7a35;border-left:3px solid #ff7a35}
+  .tg-event.done{background:rgba(158,203,127,.16);border-color:#6f9a5e;border-left-color:#9ecb7f}
+  .tg-ev-time{font-size:9px;font-weight:800;color:var(--ember2)}
+  .tg-ev-title{font-size:10.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tg-now{position:absolute;left:0;right:0;height:2px;background:#ff3d2e;z-index:4;pointer-events:none}
+  .tg-now-dot{position:absolute;top:-3px;width:8px;height:8px;border-radius:50%;background:#ff3d2e}
+
+  /* month grid */
+  .mn-dow-hd{display:grid;grid-template-columns:repeat(7,1fr);padding:0 10px}
+  .mn-dow-cell{text-align:center;font-size:9.5px;font-weight:800;color:var(--dim);letter-spacing:1px;padding:6px 0}
+  .mn-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(64px,auto);gap:2px;padding:0 10px calc(90px + var(--sab))}
+  .mn-cell{background:var(--card);border:1px solid #33231f;border-radius:8px;padding:3px;overflow:hidden;cursor:pointer;min-width:0}
+  .mn-cell.other{opacity:.36}
+  .mn-num{font-size:10.5px;font-weight:800;color:#d8c4b8;width:20px;line-height:20px;text-align:center;border-radius:50%;margin:1px auto 2px}
+  .mn-num.today{background:var(--grad);color:#1c0f0a}
+  .cal-event{font-size:8.5px;font-weight:700;color:var(--ink);background:rgba(255,95,46,.25);border-left:2px solid #ff7a35;
+    border-radius:3px;padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+  .cal-event.done{background:rgba(158,203,127,.16);border-left-color:#9ecb7f;color:#cfe4bf}
+  .cal-more{font-size:8.5px;color:var(--dim);font-weight:700;padding-left:3px}
+
+  /* mini month (Today screen) */
+  .mini-cal{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px 10px 10px;margin-top:8px}
+  .mini-head{display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px}
+  .mini-head b{font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:#e8d5c8}
+  .mini-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+  .mini-dow{color:var(--dim);font-size:9.5px;font-weight:800;padding-bottom:5px}
+  .mini-d{color:#d8c4b8;font-size:11.5px;padding:6px 0;border-radius:9px;position:relative;cursor:pointer}
+  .mini-d.dim{color:#4c3a34}
+  .mini-d.ev::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#ff7a35}
+  .mini-d.done::after{background:var(--done)}
+  .mini-d.today{background:var(--grad);color:#1c0f0a;font-weight:900}
+  .mini-d.today::after{background:#1c0f0a}
+
+  /* tab bar */
+  .tabs{flex:none;display:flex;justify-content:space-around;align-items:center;background:#150d0e;
+    border-top:1px solid #372623;padding:8px 4px calc(10px + var(--sab))}
+  .tab{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--dim);font-size:10px;font-weight:700;
+    letter-spacing:.5px;padding:4px 12px;border-radius:10px}
+  .tab .ic{font-size:19px;line-height:1;filter:grayscale(1) opacity(.55)}
+  .tab.on{color:var(--accent)}
+  .tab.on .ic{filter:none}
+
+  /* inputs */
+  .field{margin-top:12px}
+  .field label{display:block;font-size:10.5px;font-weight:800;letter-spacing:1.5px;color:var(--sec);text-transform:uppercase;margin-bottom:6px}
+  .inp{width:100%;background:#1d1413;border:1px solid var(--border2);border-radius:10px;color:var(--ink);
+    font-size:14px;padding:11px 12px;outline:none}
+  .inp:focus{border-color:var(--hot)}
+  select.inp{appearance:none;-webkit-appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--accent) 50%),linear-gradient(135deg,var(--accent) 50%,transparent 50%);
+    background-position:calc(100% - 18px) 50%,calc(100% - 13px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+  input[type=date].inp,input[type=time].inp{color-scheme:dark}
+
+  /* sheet / modal */
+  .sheet-back{position:fixed;inset:0;background:rgba(10,5,4,.72);z-index:40;display:flex;align-items:flex-end;justify-content:center;backdrop-filter:blur(3px)}
+  .sheet{background:#221715;border:1px solid var(--border2);border-bottom:0;border-radius:20px 20px 0 0;width:100%;max-width:560px;
+    max-height:88dvh;overflow-y:auto;padding:18px 18px calc(22px + var(--sab));animation:slideup .22s ease}
+  .sheet h3{font-size:17px;font-weight:900;text-transform:uppercase;letter-spacing:.5px}
+  .sheet .close{position:sticky;float:right;top:0;color:var(--sec);font-size:20px;padding:2px 8px}
+  .btnrow{display:flex;gap:10px;margin-top:16px}
+  .btnrow .cta{margin-top:0}
+  .danger{color:#ff6b5e}
+  @keyframes slideup{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+  @keyframes fadein{from{opacity:0}to{opacity:1}}
+  .anim-fade{animation:fadein .18s ease}
+
+  /* session logger */
+  .setrow{display:flex;align-items:center;gap:8px;padding:6px 0}
+  .setrow .snum{width:22px;font-size:11px;font-weight:800;color:var(--dim)}
+  .setrow input{width:64px;background:#1d1413;border:1px solid var(--border);border-radius:8px;color:var(--ink);
+    font-size:13px;padding:7px 8px;text-align:center;outline:none}
+  .setrow .unit{font-size:10px;color:var(--dim);margin-left:-4px}
+  .tick{width:30px;height:30px;border-radius:9px;border:1.5px solid var(--border2);display:flex;align-items:center;
+    justify-content:center;font-size:15px;color:transparent;margin-left:auto;flex:none}
+  .tick.on{background:var(--grad);border-color:transparent;color:#1c0f0a}
+  .exhead{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+  .exhead b{font-size:15px}
+  .exhead span{font-size:11px;color:var(--sec)}
+  .doneburst{text-align:center;padding:36px 14px}
+  .doneburst .big{font-size:52px}
+  .doneburst h2{font-size:24px;font-weight:900;text-transform:uppercase;margin-top:8px;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .doneburst p{color:var(--sec);font-size:13.5px;margin-top:8px;line-height:1.55}
+
+  /* library */
+  .plan-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:10px;cursor:pointer}
+  .plan-card h4{font-size:15px;font-weight:900;text-transform:uppercase}
+  .plan-card .pd{color:var(--sec);font-size:12px;margin-top:4px;line-height:1.5}
+  .plan-card .tags{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+  .tag{font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--ember2);
+    background:rgba(255,177,61,.12);border:1px solid rgba(255,177,61,.3);padding:2px 8px;border-radius:999px}
+  .ex-item{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;border-bottom:1px solid #372623}
+  .ex-item:last-child{border-bottom:0}
+  .ex-item .en{font-size:13.5px;font-weight:600}
+  .ex-item .eq{font-size:10px;color:var(--sec);margin-top:2px}
+  .ex-item .mus{font-size:9.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--accent)}
+  .ex-item.blocked{opacity:.45}
+  .ex-item .sub{font-size:10px;color:var(--ember2)}
+
+  /* coach */
+  .chat{flex:1;overflow-y:auto;min-height:0;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+  .msg{max-width:86%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+  .msg.user{align-self:flex-end;background:var(--grad);color:#1c0f0a;border-bottom-right-radius:4px;font-weight:600}
+  .msg.bot{align-self:flex-start;background:var(--card);border:1px solid var(--border);border-bottom-left-radius:4px}
+  .msg.bot.demo{border-style:dashed}
+  .msg .demo-tag{display:block;font-size:9px;font-weight:800;letter-spacing:1.5px;color:var(--dim);margin-bottom:4px}
+  .coach-input{flex:none;display:flex;gap:8px;padding:10px 14px calc(12px + var(--sab));background:#150d0e;border-top:1px solid #372623}
+  .coach-input textarea{flex:1;background:#1d1413;border:1px solid var(--border2);border-radius:12px;color:var(--ink);
+    font-size:14px;padding:10px 12px;resize:none;outline:none;max-height:110px}
+  .send{width:44px;height:44px;border-radius:12px;background:var(--grad);color:#1c0f0a;font-size:17px;font-weight:900;flex:none}
+  .send:disabled{opacity:.4}
+  .typing{color:var(--sec);font-size:12px;padding:0 4px}
+  .keynote{background:rgba(255,177,61,.08);border:1px solid rgba(255,177,61,.25);border-radius:12px;
+    padding:10px 13px;margin:10px 16px 0;font-size:12px;color:#e8d5c8;line-height:1.55}
+  .keynote a{color:var(--ember2)}
+
+  /* install banner + splash */
+  .install-bar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + var(--sab));width:min(92%,520px);
+    background:#221715;border:1px solid var(--border2);border-radius:14px;padding:12px 14px;z-index:60;
+    display:flex;align-items:center;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  .install-bar .t{flex:1;font-size:12.5px;line-height:1.45;color:#e8d5c8}
+  .install-bar .go{background:var(--grad);color:#1c0f0a;font-weight:900;font-size:12px;padding:9px 14px;border-radius:9px;letter-spacing:1px}
+  #splash{position:fixed;inset:0;background:linear-gradient(180deg,var(--bg1),var(--bg3));z-index:100;display:none;
+    align-items:center;justify-content:center;flex-direction:column;gap:14px}
+  #splash .flame{font-size:56px;animation:pulse 1.1s ease infinite}
+  #splash .bn{font-size:22px;font-weight:900;letter-spacing:3px;text-transform:uppercase;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(96px + var(--sab));background:#221715;color:var(--ink);
+    border:1px solid var(--border2);padding:10px 18px;border-radius:999px;font-size:12.5px;font-weight:700;z-index:80;
+    box-shadow:0 10px 30px rgba(0,0,0,.45);animation:fadein .2s ease}
+</style>
+</head>
+<body>
+<div id="splash"><div class="flame">🔥</div><div class="bn">Brologue</div></div>
+<div id="app"></div>
+<script>
+'use strict';
+/* ── Brologue — workout & fitness tracking PWA ─────────────────────── */
+
+/* DOM helper (Dokit pattern) */
+function h(tag, attrs, ...children){
+  const el = document.createElement(tag);
+  if(attrs) for(const [k,v] of Object.entries(attrs)){
+    if(k === 'className') el.className = v;
+    else if(k === 'style' && typeof v === 'object') Object.assign(el.style, v);
+    else if(k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+    else if(v !== null && v !== undefined) el.setAttribute(k, v);
+  }
+  for(const c of children.flat()) if(c !== null && c !== undefined && c !== false) el.append(c.nodeType ? c : document.createTextNode(c));
+  return el;
+}
+
+/* ── constants ─────────────────────────────────────────────────────── */
+const HOUR_PX = 48, EVENT_MIN = 60;
+const HOURS = Array.from({length:24}, (_,i)=>i);
+const DOW = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const QUOTES = [
+  '“Show up. That’s the win.”','“The body achieves what the mind believes.”',
+  '“Sweat now, shine later.”','“Discipline beats motivation.”',
+  '“One more rep. Always one more.”','“You don’t find willpower. You build it.”',
+  '“Strong is a decision.”','“Rest days build champions too.”',
+  '“Small steps. Heavy weights. Big change.”','“Future you is watching. Impress them.”'
+];
+const EQUIPMENT = ['barbell','dumbbell','kettlebell','machine','cables','bands','pull-up bar','bench'];
+
+/* exercise DB: [name, muscle, [equipment...], bodyweight substitute] */
+const EXERCISES = [
+  ['Barbell Back Squat','legs',['barbell'],'Pistol Squat Progression'],
+  ['Front Squat','legs',['barbell'],'Goblet Squat'],
+  ['Goblet Squat','legs',['dumbbell','kettlebell'],'Air Squat'],
+  ['Air Squat','legs',[],null],
+  ['Bulgarian Split Squat','legs',['bench'],'Reverse Lunge'],
+  ['Walking Lunge','legs',[],null],
+  ['Reverse Lunge','legs',[],null],
+  ['Leg Press','legs',['machine'],'Wall Sit'],
+  ['Leg Extension','legs',['machine'],'Sissy Squat'],
+  ['Leg Curl','legs',['machine'],'Nordic Curl'],
+  ['Romanian Deadlift','legs',['barbell','dumbbell'],'Single-Leg Hip Hinge'],
+  ['Conventional Deadlift','back',['barbell'],'Hip Hinge Hold'],
+  ['Hip Thrust','legs',['barbell','bench'],'Single-Leg Glute Bridge'],
+  ['Glute Bridge','legs',[],null],
+  ['Calf Raise','legs',[],null],
+  ['Wall Sit','legs',[],null],
+  ['Step-Up','legs',['bench'],null],
+  ['Nordic Curl','legs',[],null],
+  ['Barbell Bench Press','chest',['barbell','bench'],'Push-Up'],
+  ['Dumbbell Bench Press','chest',['dumbbell','bench'],'Push-Up'],
+  ['Incline DB Press','chest',['dumbbell','bench'],'Decline Push-Up'],
+  ['Push-Up','chest',[],null],
+  ['Decline Push-Up','chest',[],null],
+  ['Diamond Push-Up','chest',[],null],
+  ['Cable Fly','chest',['cables'],'Wide Push-Up'],
+  ['Dumbbell Fly','chest',['dumbbell','bench'],'Wide Push-Up'],
+  ['Chest Dip','chest',['pull-up bar'],'Decline Push-Up'],
+  ['Machine Chest Press','chest',['machine'],'Push-Up'],
+  ['Overhead Press','shoulders',['barbell'],'Pike Push-Up'],
+  ['Dumbbell Shoulder Press','shoulders',['dumbbell'],'Pike Push-Up'],
+  ['Arnold Press','shoulders',['dumbbell'],'Pike Push-Up'],
+  ['Lateral Raise','shoulders',['dumbbell','cables','bands'],'Side Plank Raise'],
+  ['Front Raise','shoulders',['dumbbell','bands'],null],
+  ['Rear Delt Fly','shoulders',['dumbbell','cables','bands'],'Reverse Snow Angel'],
+  ['Face Pull','shoulders',['cables','bands'],'Reverse Snow Angel'],
+  ['Pike Push-Up','shoulders',[],null],
+  ['Handstand Push-Up','shoulders',[],null],
+  ['Upright Row','shoulders',['barbell','dumbbell'],null],
+  ['Shrug','shoulders',['barbell','dumbbell'],null],
+  ['Pull-Up','back',['pull-up bar'],'Doorframe Row'],
+  ['Chin-Up','back',['pull-up bar'],'Doorframe Row'],
+  ['Lat Pulldown','back',['machine','cables'],'Pull-Up'],
+  ['Barbell Row','back',['barbell'],'Inverted Row'],
+  ['Dumbbell Row','back',['dumbbell'],'Inverted Row'],
+  ['Seated Cable Row','back',['cables','machine'],'Band Row'],
+  ['Inverted Row','back',[],null],
+  ['Band Row','back',['bands'],null],
+  ['T-Bar Row','back',['barbell','machine'],'Inverted Row'],
+  ['Back Extension','back',['machine','bench'],'Superman Hold'],
+  ['Superman Hold','back',[],null],
+  ['Barbell Curl','arms',['barbell'],'Chin-Up'],
+  ['Dumbbell Curl','arms',['dumbbell'],'Backpack Curl'],
+  ['Hammer Curl','arms',['dumbbell'],'Backpack Curl'],
+  ['Cable Curl','arms',['cables'],'Band Curl'],
+  ['Band Curl','arms',['bands'],null],
+  ['Preacher Curl','arms',['barbell','bench'],null],
+  ['Triceps Pushdown','arms',['cables','bands'],'Diamond Push-Up'],
+  ['Skull Crusher','arms',['barbell','bench'],'Diamond Push-Up'],
+  ['Overhead Triceps Extension','arms',['dumbbell','cables'],'Diamond Push-Up'],
+  ['Bench Dip','arms',['bench'],null],
+  ['Close-Grip Bench Press','arms',['barbell','bench'],'Diamond Push-Up'],
+  ['Kettlebell Swing','full',['kettlebell'],'Jump Squat'],
+  ['Clean & Press','full',['barbell','dumbbell','kettlebell'],'Burpee'],
+  ['Thruster','full',['barbell','dumbbell'],'Jump Squat'],
+  ['Farmer’s Carry','full',['dumbbell','kettlebell'],null],
+  ['Turkish Get-Up','full',['kettlebell','dumbbell'],null],
+  ['Burpee','cardio',[],null],
+  ['Mountain Climber','cardio',[],null],
+  ['Jump Squat','cardio',[],null],
+  ['Jumping Jack','cardio',[],null],
+  ['High Knees','cardio',[],null],
+  ['Jump Rope','cardio',['bands'],'High Knees'],
+  ['Plank','core',[],null],
+  ['Side Plank','core',[],null],
+  ['Hanging Leg Raise','core',['pull-up bar'],'Lying Leg Raise'],
+  ['Lying Leg Raise','core',[],null],
+  ['Russian Twist','core',['dumbbell','kettlebell'],null],
+  ['Crunch','core',[],null],
+  ['Bicycle Crunch','core',[],null],
+  ['Ab Wheel Rollout','core',['bands'],'Plank Walk-Out'],
+  ['Dead Bug','core',[],null],
+  ['Hollow Body Hold','core',[],null],
+].map(([name,muscle,equip,sub])=>({name,muscle,equip,sub}));
+
+const MUSCLES = ['all','chest','back','legs','shoulders','arms','core','cardio','full'];
+
+/* workout templates: id -> {name, focus, mins, ex: [[name, sets, reps], ...]} */
+const WORKOUTS = {
+  push_a:{name:'Push Day A',focus:'Chest / Shoulders / Triceps',mins:45,ex:[['Barbell Bench Press',4,'8'],['Overhead Press',3,'10'],['Incline DB Press',3,'12'],['Lateral Raise',3,'15'],['Triceps Pushdown',3,'12']]},
+  pull_a:{name:'Pull Day A',focus:'Back / Biceps',mins:45,ex:[['Conventional Deadlift',3,'5'],['Pull-Up',4,'8'],['Barbell Row',3,'10'],['Face Pull',3,'15'],['Dumbbell Curl',3,'12']]},
+  legs_a:{name:'Leg Day A',focus:'Quads / Glutes / Hamstrings',mins:50,ex:[['Barbell Back Squat',4,'8'],['Romanian Deadlift',3,'10'],['Leg Press',3,'12'],['Walking Lunge',3,'20'],['Calf Raise',4,'15']]},
+  fb_1:{name:'Full Body 1',focus:'Squat focus',mins:45,ex:[['Barbell Back Squat',3,'8'],['Barbell Bench Press',3,'8'],['Barbell Row',3,'10'],['Plank',3,'45s']]},
+  fb_2:{name:'Full Body 2',focus:'Hinge focus',mins:45,ex:[['Romanian Deadlift',3,'8'],['Overhead Press',3,'10'],['Lat Pulldown',3,'10'],['Hanging Leg Raise',3,'12']]},
+  fb_3:{name:'Full Body 3',focus:'Power focus',mins:40,ex:[['Conventional Deadlift',3,'5'],['Incline DB Press',3,'10'],['Dumbbell Row',3,'10'],['Kettlebell Swing',3,'15']]},
+  fx5_a:{name:'5×5 Workout A',focus:'Squat / Bench / Row',mins:50,ex:[['Barbell Back Squat',5,'5'],['Barbell Bench Press',5,'5'],['Barbell Row',5,'5']]},
+  fx5_b:{name:'5×5 Workout B',focus:'Squat / Press / Deadlift',mins:50,ex:[['Barbell Back Squat',5,'5'],['Overhead Press',5,'5'],['Conventional Deadlift',1,'5']]},
+  upper:{name:'Upper Body',focus:'Chest / Back / Arms',mins:55,ex:[['Barbell Bench Press',4,'8'],['Barbell Row',4,'8'],['Dumbbell Shoulder Press',3,'10'],['Lat Pulldown',3,'10'],['Dumbbell Curl',3,'12'],['Skull Crusher',3,'12']]},
+  lower:{name:'Lower Body',focus:'Quads / Glutes / Hams / Core',mins:55,ex:[['Barbell Back Squat',4,'8'],['Romanian Deadlift',4,'8'],['Bulgarian Split Squat',3,'10'],['Calf Raise',4,'15'],['Hanging Leg Raise',3,'12']]},
+  bw_full:{name:'Bodyweight Blast',focus:'Full body, no equipment',mins:30,ex:[['Push-Up',4,'15'],['Air Squat',4,'20'],['Inverted Row',3,'12'],['Walking Lunge',3,'20'],['Plank',3,'45s']]},
+  bw_core:{name:'Core Crusher',focus:'Abs & stability, no equipment',mins:20,ex:[['Plank',3,'60s'],['Bicycle Crunch',3,'20'],['Lying Leg Raise',3,'15'],['Side Plank',3,'30s'],['Hollow Body Hold',3,'30s']]},
+  hiit_1:{name:'HIIT Inferno',focus:'Conditioning — 40s on / 20s off',mins:25,ex:[['Burpee',4,'40s'],['Jump Squat',4,'40s'],['Mountain Climber',4,'40s'],['High Knees',4,'40s'],['Plank',4,'40s']]},
+  hiit_2:{name:'HIIT Ignite',focus:'Conditioning — 30s on / 15s off',mins:20,ex:[['Jumping Jack',5,'30s'],['Push-Up',5,'30s'],['Air Squat',5,'30s'],['Bicycle Crunch',5,'30s']]},
+  kb_1:{name:'Kettlebell Forge',focus:'Full body with one bell',mins:35,ex:[['Kettlebell Swing',5,'15'],['Goblet Squat',4,'12'],['Clean & Press',4,'8'],['Turkish Get-Up',3,'3'],['Farmer’s Carry',3,'40m']]},
+};
+
+/* preset plans */
+const PLANS = [
+  {id:'ppl',name:'Push / Pull / Legs',days:'6 days / week',tags:['Hypertrophy','Gym','Intermediate'],
+   desc:'The classic muscle-building split. Each muscle group trained twice a week.',
+   sched:[[1,'push_a'],[2,'pull_a'],[3,'legs_a'],[4,'push_a'],[5,'pull_a'],[6,'legs_a']]},
+  {id:'fb3',name:'Full Body 3-Day',days:'3 days / week',tags:['Strength','Beginner-friendly'],
+   desc:'Three balanced full-body sessions. Ideal for beginners or busy weeks.',
+   sched:[[1,'fb_1'],[3,'fb_2'],[5,'fb_3']]},
+  {id:'x55',name:'5×5 Strength',days:'3 days / week',tags:['Strength','Barbell'],
+   desc:'Alternating A/B barbell sessions built around heavy compound lifts. Add weight every session.',
+   sched:[[1,'fx5_a'],[3,'fx5_b'],[5,'fx5_a']]},
+  {id:'ul',name:'Upper / Lower',days:'4 days / week',tags:['Hypertrophy','Strength'],
+   desc:'Four sessions alternating upper and lower body. Great balance of volume and recovery.',
+   sched:[[1,'upper'],[2,'lower'],[4,'upper'],[5,'lower']]},
+  {id:'bw',name:'Bodyweight Anywhere',days:'4 days / week',tags:['No equipment','Home'],
+   desc:'Zero equipment required. Strength, core and conditioning from anywhere.',
+   sched:[[1,'bw_full'],[3,'bw_core'],[5,'bw_full'],[6,'hiit_2']]},
+  {id:'hiit',name:'HIIT Shred',days:'4 days / week',tags:['Fat loss','Conditioning'],
+   desc:'Short, brutal conditioning sessions plus one strength day to hold on to muscle.',
+   sched:[[1,'hiit_1'],[3,'hiit_2'],[5,'hiit_1'],[6,'bw_full']]},
+];
+
+/* ── storage ───────────────────────────────────────────────────────── */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); },
+};
+const STATE = {
+  tab: 'today',
+  calView: store.get('bl_cal_view','month'),
+  calDate: new Date(),
+  miniDate: new Date(),
+  session: null,             // active workout session
+  coachBusy: false,
+  deferredInstall: null,
+};
+const db = {
+  get schedule(){ return store.get('bl_schedule', []); },
+  set schedule(v){ store.set('bl_schedule', v); },
+  get logs(){ return store.get('bl_logs', []); },
+  set logs(v){ store.set('bl_logs', v); },
+  get equipment(){ return store.get('bl_equipment', ['barbell','dumbbell','bench','pull-up bar']); },
+  set equipment(v){ store.set('bl_equipment', v); },
+  get apiKey(){ return store.get('bl_api_key',''); },
+  set apiKey(v){ store.set('bl_api_key', v); },
+  get custom(){ return store.get('bl_custom_workouts', []); },
+  set custom(v){ store.set('bl_custom_workouts', v); },
+  get coach(){ return store.get('bl_coach_history', []); },
+  set coach(v){ store.set('bl_coach_history', v); },
+};
+
+/* ── date helpers ──────────────────────────────────────────────────── */
+function ds(d){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
+function fromDs(s){ const [y,m,dd]=s.split('-').map(Number); return new Date(y,m-1,dd); }
+function today(){ return ds(new Date()); }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+function wkStart(d){ const wd=new Date(d); const day=wd.getDay(); const diff=day===0?-6:1-day; wd.setDate(wd.getDate()+diff); wd.setHours(0,0,0,0); return wd; }
+function dayDiff(a,b){ return Math.round((fromDs(b) - fromDs(a)) / 86400000); }
+function fmtTime(t){ if(!t) return ''; const [hh,mm]=t.split(':').map(Number); const am=hh<12; const h12=hh%12===0?12:hh%12; return `${h12}:${String(mm).padStart(2,'0')}${am?'am':'pm'}`; }
+function minutesOf(t){ if(!t) return 0; const [hh,mm]=t.split(':').map(Number); return hh*60+mm; }
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* workout lookup across presets + custom */
+function getWorkout(id){
+  if(WORKOUTS[id]) return {id, ...WORKOUTS[id]};
+  const c = db.custom.find(w=>w.id===id);
+  return c ? {id:c.id, name:c.name, focus:c.focus||'Custom workout', mins:c.mins||40, ex:c.ex} : null;
+}
+function allWorkoutOptions(){
+  const opts = Object.entries(WORKOUTS).map(([id,w])=>[id,w.name]);
+  for(const c of db.custom) opts.push([c.id, c.name+' (custom)']);
+  return opts;
+}
+
+/* ── recurrence engine ─────────────────────────────────────────────── */
+/* entry: {id, workoutId, date, time, recur:{freq,interval,days[]}, until, exceptions[]} */
+function occursOn(entry, dateStr){
+  if(dateStr < entry.date) return false;
+  if(entry.exceptions && entry.exceptions.includes(dateStr)) return false;
+  if(entry.until && dateStr > entry.until) return false;
+  const r = entry.recur || {freq:'none'};
+  const diff = dayDiff(entry.date, dateStr);
+  if(r.freq === 'none')   return dateStr === entry.date;
+  if(r.freq === 'daily')  return diff % (r.interval||1) === 0;
+  if(r.freq === 'weekly'){
+    const dow = fromDs(dateStr).getDay();
+    const days = (r.days && r.days.length) ? r.days : [fromDs(entry.date).getDay()];
+    if(!days.includes(dow)) return false;
+    const weeks = Math.round((wkStart(fromDs(dateStr)) - wkStart(fromDs(entry.date))) / 604800000);
+    return weeks % (r.interval||1) === 0;
+  }
+  if(r.freq === 'monthly'){
+    const a = fromDs(entry.date), b = fromDs(dateStr);
+    if(a.getDate() !== b.getDate()) return false;
+    const months = (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth());
+    return months % (r.interval||1) === 0;
+  }
+  return false;
+}
+function eventsForDate(dateStr){
+  return db.schedule.filter(e=>occursOn(e, dateStr)).map(e=>({
+    entry:e, workout:getWorkout(e.workoutId), date:dateStr, time:e.time,
+    done: db.logs.some(l=>l.date===dateStr && l.entryId===e.id),
+  })).sort((a,b)=>(a.time||'99').localeCompare(b.time||'99'));
+}
+function recurLabel(e){
+  const r = e.recur||{freq:'none'};
+  if(r.freq==='none') return 'One-off';
+  if(r.freq==='daily') return r.interval>1?`Every ${r.interval} days`:'Daily';
+  if(r.freq==='weekly'){
+    const days=(r.days&&r.days.length)?r.days.map(d=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d]).join(' · '):'weekly';
+    return (r.interval>1?`Every ${r.interval} weeks: `:'Weekly: ')+days;
+  }
+  if(r.freq==='monthly') return 'Monthly';
+  return '';
+}
+
+/* ── streak ────────────────────────────────────────────────────────── */
+function streakCount(){
+  const dates = [...new Set(db.logs.map(l=>l.date))].sort().reverse();
+  if(!dates.length) return 0;
+  let cur = today();
+  if(dates[0] !== cur){
+    const y = ds(addDays(new Date(),-1));
+    if(dates[0] !== y) return 0;
+    cur = y;
+  }
+  let n = 0;
+  for(const d of dates){
+    if(d === cur){ n++; cur = ds(addDays(fromDs(cur),-1)); }
+    else if(d < cur) break;
+  }
+  return n;
+}
+
+/* ── misc ui helpers ───────────────────────────────────────────────── */
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(t=>t.remove());
+  const t = h('div',{className:'toast'}, msg);
+  document.body.append(t);
+  setTimeout(()=>t.remove(), 2400);
+}
+function sheet(...children){
+  const back = h('div',{className:'sheet-back', onClick:e=>{ if(e.target===back) back.remove(); }});
+  const s = h('div',{className:'sheet'},
+    h('button',{className:'close', onClick:()=>back.remove()},'✕'),
+    ...children);
+  back.append(s);
+  document.body.append(back);
+  return back;
+}
+
+/* ── render root ───────────────────────────────────────────────────── */
+const APP = () => document.getElementById('app');
+function render(){
+  const root = APP(); root.innerHTML = '';
+  let scr;
+  if(STATE.session) scr = SessionScreen();
+  else if(STATE.tab === 'calendar') scr = CalendarScreen();
+  else if(STATE.tab === 'library')  scr = LibraryScreen();
+  else if(STATE.tab === 'coach')    scr = CoachScreen();
+  else scr = TodayScreen();
+  root.append(scr);
+  if(!STATE.session) root.append(TabBar());
+}
+function TabBar(){
+  const tabs = [['today','⚡','Today'],['calendar','📅','Calendar'],['library','📚','Library'],['coach','💬','Coach']];
+  return h('div',{className:'tabs'}, tabs.map(([id,ic,label])=>
+    h('button',{className:'tab'+(STATE.tab===id?' on':''), onClick:()=>{STATE.tab=id; render();}},
+      h('span',{className:'ic'},ic), h('span',{},label))));
+}
+
+/* ── Today screen ──────────────────────────────────────────────────── */
+function TodayScreen(){
+  const wrap = h('div',{className:'screen anim-fade'});
+  wrap.append(h('div',{className:'app-bar'},
+    h('div',{className:'brand'},'🔥 Brologue'),
+    h('button',{className:'icon-btn', title:'Settings', onClick:settingsSheet},'⚙︎')));
+  const body = h('div',{className:'scrolly'});
+
+  const todayStr = today();
+  const evs = eventsForDate(todayStr);
+  const next = evs.find(e=>!e.done) || evs[0];
+  const dateLabel = new Date().toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric'}).toUpperCase();
+
+  body.append(h('div',{className:'kick'}, dateLabel + " — TODAY'S WORKOUT"));
+  const streak = streakCount();
+  const quote = QUOTES[(new Date().getDate() + new Date().getMonth()) % QUOTES.length];
+
+  if(next && next.workout){
+    const w = next.workout;
+    body.append(
+      h('div',{className:'h1'}, w.name),
+      h('div',{className:'meta'}, `${w.mins} min · ${w.focus}` + (next.time ? ` · ${fmtTime(next.time)}` : '')),
+      h('div',{className:'mot'},
+        h('span',{className:'streak'+(streak?'':' cold')}, streak ? `🔥 ${streak}-day streak` : '🔥 Start your streak today'),
+        h('span',{className:'quote'}, quote)),
+      h('div',{className:'card'},
+        w.ex.map(([name,sets,reps])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}`)))),
+      next.done
+        ? h('button',{className:'cta ghost', onClick:()=>startSession(next)},'✓ COMPLETED — DO IT AGAIN')
+        : h('button',{className:'cta', onClick:()=>startSession(next)},'START WORKOUT 🔥'));
+    const rest = evs.filter(e=>e!==next);
+    if(rest.length){
+      body.append(h('div',{className:'sl'},'Also today'));
+      for(const e of rest) body.append(h('div',{className:'card', style:{marginTop:'8px', cursor:'pointer'}, onClick:()=>eventSheet(e)},
+        h('div',{className:'exrow'}, h('span',{}, (e.done?'✓ ':'') + (e.workout ? e.workout.name : '?')), h('span',{className:'set'}, e.time ? fmtTime(e.time) : 'Any time'))));
+    }
+  } else {
+    body.append(
+      h('div',{className:'h1'},'Rest Day'),
+      h('div',{className:'meta'},'Nothing scheduled for today.'),
+      h('div',{className:'mot'},
+        h('span',{className:'streak'+(streak?'':' cold')}, streak ? `🔥 ${streak}-day streak` : '🔥 Start your streak today'),
+        h('span',{className:'quote'}, quote)),
+      h('div',{className:'card'},
+        h('div',{className:'empty'},'Recovery is training too. 😌\nOr grab a workout from the Library and make today count.')),
+      h('button',{className:'cta', onClick:()=>scheduleSheet(todayStr)},'SCHEDULE A WORKOUT'));
+  }
+
+  body.append(h('div',{className:'sl'},'Your month'));
+  body.append(MiniMonth());
+  wrap.append(body);
+  return wrap;
+}
+
+function MiniMonth(){
+  const d = STATE.miniDate, yr = d.getFullYear(), mo = d.getMonth();
+  const box = h('div',{className:'mini-cal'});
+  box.append(h('div',{className:'mini-head'},
+    h('button',{className:'icon-btn', onClick:()=>{STATE.miniDate=new Date(yr,mo-1,1); render();}},'‹'),
+    h('b',{}, d.toLocaleDateString('en-US',{month:'long', year:'numeric'})),
+    h('button',{className:'icon-btn', onClick:()=>{STATE.miniDate=new Date(yr,mo+1,1); render();}},'›')));
+  const grid = h('div',{className:'mini-grid'});
+  DOW.forEach(dw=>grid.append(h('div',{className:'mini-dow'}, dw[0])));
+  const first = new Date(yr,mo,1); let sdow = first.getDay(); sdow = sdow===0?6:sdow-1;
+  const dim = new Date(yr,mo+1,0).getDate(), prevDim = new Date(yr,mo,0).getDate();
+  const cells = [];
+  for(let i=sdow-1;i>=0;i--) cells.push({date:new Date(yr,mo-1,prevDim-i), other:true});
+  for(let i=1;i<=dim;i++) cells.push({date:new Date(yr,mo,i), other:false});
+  while(cells.length%7) cells.push({date:new Date(yr,mo+1,cells.length-sdow-dim+1), other:true});
+  for(const {date,other} of cells){
+    const s = ds(date);
+    const evs = other?[]:eventsForDate(s);
+    const cls = 'mini-d'+(other?' dim':'')+(s===today()?' today':'')+(evs.length?(evs.every(e=>e.done)?' ev done':' ev'):'');
+    grid.append(h('div',{className:cls, onClick:()=>{STATE.calDate=date; STATE.calView='day'; store.set('bl_cal_view','day'); STATE.tab='calendar'; render();}}, date.getDate()));
+  }
+  box.append(grid);
+  return box;
+}
+
+/* ── Calendar (Dokit layout) ───────────────────────────────────────── */
+function CalendarScreen(){
+  const wrap = h('div',{className:'screen'});
+  wrap.append(h('div',{className:'app-bar'},
+    h('div',{className:'title'},'Calendar'),
+    h('button',{className:'icon-btn', style:{color:'var(--accent)', fontSize:'24px'}, title:'Schedule workout',
+      onClick:()=>scheduleSheet(ds(STATE.calDate))},'＋')));
+  const seg = h('div',{className:'cal-seg'});
+  ['day','week','month'].forEach(v=>seg.append(h('button',{className:STATE.calView===v?'on':'',
+    onClick:()=>{STATE.calView=v; store.set('bl_cal_view',v); render();}}, v[0].toUpperCase()+v.slice(1))));
+  wrap.append(seg);
+  const bar = h('div',{className:'cal-bar'});
+  bar.append(
+    h('div',{className:'cal-side'}, h('button',{className:'cal-step', onClick:()=>{stepCal(-1); render();}},'‹')),
+    h('span',{className:'cal-per'}, calLabel()),
+    h('div',{className:'cal-side'},
+      h('button',{className:'cal-step', onClick:()=>{stepCal(1); render();}},'›'),
+      h('button',{className:'cal-today', onClick:()=>{STATE.calDate=new Date(); render();}},'Today')));
+  wrap.append(bar);
+  if(STATE.calView==='day')       wrap.append(DayView());
+  else if(STATE.calView==='week') wrap.append(WeekView());
+  else                            wrap.append(MonthView());
+  return wrap;
+}
+function calLabel(){
+  const d = STATE.calDate;
+  if(STATE.calView==='day')  return d.toLocaleDateString('en-US',{weekday:'long', day:'numeric', month:'long'});
+  if(STATE.calView==='week'){ const m=wkStart(d), e=addDays(m,6);
+    return `${m.toLocaleDateString('en-US',{day:'numeric',month:'short'})} – ${e.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'})}`; }
+  return d.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+}
+function stepCal(dir){
+  const d = new Date(STATE.calDate);
+  if(STATE.calView==='day') d.setDate(d.getDate()+dir);
+  else if(STATE.calView==='week') d.setDate(d.getDate()+dir*7);
+  else d.setMonth(d.getMonth()+dir);
+  STATE.calDate = d;
+}
+function layoutDay(evs){
+  const items = evs.map(e=>{ const start=minutesOf(e.time); return {e, start, end:start+EVENT_MIN, lane:0, lanes:1}; })
+    .sort((a,b)=>a.start-b.start);
+  let cluster=[], clusterEnd=-1;
+  const flush=()=>{
+    if(!cluster.length) return;
+    const laneEnds=[];
+    for(const it of cluster){
+      let placed=false;
+      for(let i=0;i<laneEnds.length;i++) if(it.start>=laneEnds[i]){ it.lane=i; laneEnds[i]=it.end; placed=true; break; }
+      if(!placed){ it.lane=laneEnds.length; laneEnds.push(it.end); }
+    }
+    for(const it of cluster) it.lanes=laneEnds.length;
+    cluster=[];
+  };
+  for(const it of items){
+    if(!cluster.length){ cluster=[it]; clusterEnd=it.end; }
+    else if(it.start<clusterEnd){ cluster.push(it); clusterEnd=Math.max(clusterEnd,it.end); }
+    else { flush(); cluster=[it]; clusterEnd=it.end; }
+  }
+  flush();
+  return items.map(it=>({ev:it.e, top:it.start/60*HOUR_PX, height:EVENT_MIN/60*HOUR_PX, widthPct:100/it.lanes, leftPct:it.lane*100/it.lanes}));
+}
+function tgEvent(ev, geo){
+  return h('div',{className:'tg-event'+(ev.done?' done':''),
+    style:{top:geo.top+'px', height:geo.height+'px', left:`calc(${geo.leftPct}% + 2px)`, width:`calc(${geo.widthPct}% - 4px)`},
+    onClick:()=>eventSheet(ev)},
+    h('div',{className:'tg-ev-time'}, fmtTime(ev.time)),
+    h('div',{className:'tg-ev-title'}, ev.workout ? ev.workout.name : '?'));
+}
+function buildCol(dateStr){
+  const col = h('div',{className:'tg-col', onClick:e=>{
+    if(e.target!==col) return;
+    const hr = Math.floor((e.offsetY)/HOUR_PX);
+    scheduleSheet(dateStr, String(hr).padStart(2,'0')+':00');
+  }});
+  const timed = eventsForDate(dateStr).filter(e=>!!e.time);
+  layoutDay(timed).forEach(({ev,...geo})=>col.append(tgEvent(ev,geo)));
+  return col;
+}
+function allDayStrip(dates){
+  const untimed = dates.map(dstr=>eventsForDate(dstr).filter(e=>!e.time));
+  if(!untimed.some(l=>l.length)) return null;
+  const row = h('div',{style:{display:'flex', padding:'0 0 4px'}});
+  row.append(h('div',{style:{width:'44px', flex:'none', fontSize:'8.5px', color:'var(--dim)', paddingTop:'4px'}},'any'));
+  dates.forEach((dstr,i)=>{
+    const cell = h('div',{style:{flex:'1', minWidth:0, padding:'0 2px'}});
+    untimed[i].forEach(ev=>cell.append(h('div',{className:'cal-event'+(ev.done?' done':''), onClick:()=>eventSheet(ev)}, ev.workout?ev.workout.name:'?')));
+    row.append(cell);
+  });
+  return row;
+}
+function DayView(){
+  const dstr = ds(STATE.calDate);
+  const scroll = h('div',{className:'tg-scroll anim-fade'});
+  const strip = allDayStrip([dstr]); if(strip) scroll.append(strip);
+  const body = h('div',{className:'tg-body', style:{height:24*HOUR_PX+'px'}});
+  const gutter = h('div',{className:'tg-gutter'});
+  HOURS.forEach(hr=>{ const he=h('div',{className:'tg-hour'}); if(hr>0) he.append(h('span',{},hr+':00')); gutter.append(he); });
+  body.append(gutter);
+  const cols = h('div',{className:'tg-cols'});
+  cols.append(buildCol(dstr));
+  if(dstr===today()){ const n=new Date(); const top=(n.getHours()+n.getMinutes()/60)*HOUR_PX;
+    const nl=h('div',{className:'tg-now', style:{top:top+'px'}}); nl.append(h('span',{className:'tg-now-dot'})); cols.append(nl); }
+  body.append(cols); scroll.append(body);
+  setTimeout(()=>{ scroll.scrollTop = 6*HOUR_PX; },40);
+  return scroll;
+}
+function WeekView(){
+  const mon = wkStart(STATE.calDate);
+  const days = Array.from({length:7},(_,i)=>addDays(mon,i));
+  const scroll = h('div',{className:'tg-scroll anim-fade'});
+  const head = h('div',{className:'tg-head'});
+  head.append(h('div',{className:'tg-corner'}));
+  days.forEach((d,i)=>{
+    const isToday = ds(d)===today();
+    head.append(h('div',{className:'tg-dayhead'+(isToday?' today':'')},
+      h('span',{className:'dow'},DOW[i]), h('span',{className:'wd'},d.getDate())));
+  });
+  scroll.append(head);
+  const strip = allDayStrip(days.map(ds)); if(strip) scroll.append(strip);
+  const body = h('div',{className:'tg-body', style:{height:24*HOUR_PX+'px'}});
+  const gutter = h('div',{className:'tg-gutter'});
+  HOURS.forEach(hr=>{ const he=h('div',{className:'tg-hour'}); if(hr>0) he.append(h('span',{},hr+':00')); gutter.append(he); });
+  body.append(gutter);
+  const cols = h('div',{className:'tg-cols'});
+  let nowIdx=-1;
+  days.forEach((d,i)=>{ if(ds(d)===today()) nowIdx=i; cols.append(buildCol(ds(d))); });
+  if(nowIdx>=0){ const n=new Date(); const top=(n.getHours()+n.getMinutes()/60)*HOUR_PX;
+    const nl=h('div',{className:'tg-now', style:{top:top+'px'}});
+    nl.append(h('span',{className:'tg-now-dot', style:{left:(nowIdx/7*100)+'%'}})); cols.append(nl); }
+  body.append(cols); scroll.append(body);
+  setTimeout(()=>{ scroll.scrollTop = 6*HOUR_PX; },40);
+  return scroll;
+}
+function MonthView(){
+  const d = STATE.calDate, yr=d.getFullYear(), mo=d.getMonth();
+  const first = new Date(yr,mo,1); let sdow=first.getDay(); sdow = sdow===0?6:sdow-1;
+  const dim = new Date(yr,mo+1,0).getDate(), prevDim = new Date(yr,mo,0).getDate();
+  const cells=[];
+  for(let i=sdow-1;i>=0;i--) cells.push({date:new Date(yr,mo-1,prevDim-i), other:true});
+  for(let i=1;i<=dim;i++) cells.push({date:new Date(yr,mo,i), other:false});
+  while(cells.length<42) cells.push({date:new Date(yr,mo+1,cells.length-sdow-dim+1), other:true});
+  const wrap = h('div',{className:'anim-fade', style:{flex:'1', overflowY:'auto', minHeight:0}});
+  const dowHd = h('div',{className:'mn-dow-hd'});
+  DOW.forEach(dw=>dowHd.append(h('div',{className:'mn-dow-cell'},dw)));
+  wrap.append(dowHd);
+  const grid = h('div',{className:'mn-grid'});
+  for(const {date,other} of cells){
+    const dstr = ds(date);
+    const evs = other?[]:eventsForDate(dstr);
+    const cell = h('div',{className:'mn-cell'+(other?' other':''),
+      onClick:()=>{STATE.calDate=date; STATE.calView='day'; store.set('bl_cal_view','day'); render();}});
+    cell.append(h('div',{className:'mn-num'+(dstr===today()?' today':'')}, date.getDate()));
+    evs.slice(0,3).forEach(ev=>cell.append(h('div',{className:'cal-event'+(ev.done?' done':''),
+      onClick:e=>{e.stopPropagation(); eventSheet(ev);}}, ev.workout?ev.workout.name:'?')));
+    if(evs.length>3) cell.append(h('span',{className:'cal-more'},'+'+(evs.length-3)));
+    grid.append(cell);
+  }
+  wrap.append(grid);
+  return wrap;
+}
+
+/* ── schedule sheet (create / edit) ────────────────────────────────── */
+function scheduleSheet(prefDate, prefTime, entry){
+  const isEdit = !!entry;
+  const st = {
+    workoutId: entry ? entry.workoutId : Object.keys(WORKOUTS)[0],
+    date: entry ? entry.date : (prefDate || today()),
+    time: entry ? (entry.time||'') : (prefTime||''),
+    freq: entry ? (entry.recur?entry.recur.freq:'none') : 'none',
+    interval: entry && entry.recur ? (entry.recur.interval||1) : 1,
+    days: entry && entry.recur && entry.recur.days ? [...entry.recur.days] : [],
+    until: entry ? (entry.until||'') : '',
+  };
+  const wSel = h('select',{className:'inp'}, allWorkoutOptions().map(([v,l])=>{
+    const o=h('option',{value:v},l); if(v===st.workoutId) o.selected=true; return o; }));
+  const dateInp = h('input',{className:'inp', type:'date', value:st.date});
+  const timeInp = h('input',{className:'inp', type:'time', value:st.time});
+  const freqSel = h('select',{className:'inp'},
+    [['none','Does not repeat'],['daily','Daily'],['daily2','Every N days'],['weekly','Weekly on chosen days'],['weekly2','Every 2 weeks'],['monthly','Monthly']]
+    .map(([v,l])=>{ const cur = st.freq==='daily'&&st.interval>1?'daily2':(st.freq==='weekly'&&st.interval===2?'weekly2':st.freq);
+      const o=h('option',{value:v},l); if(v===cur) o.selected=true; return o; }));
+  const intInp = h('input',{className:'inp', type:'number', min:'2', max:'30', value:String(Math.max(2,st.interval))});
+  const intWrap = h('div',{className:'field', style:{display:'none'}}, h('label',{},'Repeat every N days'), intInp);
+  const dayChips = h('div',{className:'chiprow'});
+  const jsDows = [[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']];
+  const dayWrap = h('div',{className:'field', style:{display:'none'}}, h('label',{},'On days'), dayChips);
+  jsDows.forEach(([v,l])=>{
+    const c = h('button',{className:'chip'+(st.days.includes(v)?' on':''), onClick:e=>{
+      e.preventDefault();
+      const i = st.days.indexOf(v);
+      if(i>=0) st.days.splice(i,1); else st.days.push(v);
+      c.classList.toggle('on');
+    }}, l);
+    dayChips.append(c);
+  });
+  const untilInp = h('input',{className:'inp', type:'date', value:st.until});
+  const syncVis = ()=>{
+    const v = freqSel.value;
+    intWrap.style.display = v==='daily2' ? '' : 'none';
+    dayWrap.style.display = (v==='weekly'||v==='weekly2') ? '' : 'none';
+  };
+  freqSel.addEventListener('change', syncVis); syncVis();
+
+  const save = ()=>{
+    const v = freqSel.value;
+    let recur = {freq:'none'};
+    if(v==='daily')   recur = {freq:'daily', interval:1};
+    if(v==='daily2')  recur = {freq:'daily', interval:Math.max(2, parseInt(intInp.value)||2)};
+    if(v==='weekly' || v==='weekly2'){
+      const days = st.days.length ? st.days : [fromDs(dateInp.value||today()).getDay()];
+      recur = {freq:'weekly', interval:v==='weekly2'?2:1, days};
+    }
+    if(v==='monthly') recur = {freq:'monthly', interval:1};
+    const rec = {
+      id: entry ? entry.id : uid(),
+      workoutId: wSel.value,
+      date: dateInp.value || today(),
+      time: timeInp.value || null,
+      recur, until: untilInp.value || null,
+      exceptions: entry ? (entry.exceptions||[]) : [],
+    };
+    const list = db.schedule.filter(e=>e.id!==rec.id);
+    list.push(rec); db.schedule = list;
+    back.remove(); render();
+    toast(isEdit ? 'Workout updated 💪' : 'Workout scheduled 💪');
+  };
+  const back = sheet(
+    h('h3',{}, isEdit ? 'Edit workout' : 'Schedule workout'),
+    h('div',{className:'field'}, h('label',{},'Workout'), wSel),
+    h('div',{className:'field'}, h('label',{}, isEdit&&st.freq!=='none' ? 'Series start date' : 'Date'), dateInp),
+    h('div',{className:'field'}, h('label',{},'Time (optional)'), timeInp),
+    h('div',{className:'field'}, h('label',{},'Repeats'), freqSel),
+    intWrap, dayWrap,
+    h('div',{className:'field'}, h('label',{},'Ends (optional)'), untilInp),
+    h('button',{className:'cta', onClick:save}, isEdit ? 'SAVE CHANGES' : 'ADD TO CALENDAR'));
+}
+
+/* ── event sheet (occurrence actions) ──────────────────────────────── */
+function eventSheet(ev){
+  const e = ev.entry, w = ev.workout;
+  const isRecur = e.recur && e.recur.freq !== 'none';
+  const back = sheet(
+    h('div',{className:'kick'}, fromDs(ev.date).toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric'}).toUpperCase() + (ev.time?' · '+fmtTime(ev.time):'')),
+    h('h3',{style:{marginTop:'4px'}}, w ? w.name : 'Workout'),
+    h('div',{className:'meta'}, (w ? `${w.mins} min · ${w.focus}` : '') + ' · ' + recurLabel(e)),
+    w && h('div',{className:'card'},
+      w.ex.map(([name,sets,reps])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}`)))),
+    ev.done
+      ? h('div',{className:'meta', style:{marginTop:'10px', color:'var(--done)'}},'✓ Completed — nice work.')
+      : h('button',{className:'cta', onClick:()=>{back.remove(); startSession(ev);}},'START THIS WORKOUT'),
+    h('div',{className:'btnrow'},
+      h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{back.remove(); scheduleSheet(null,null,e);}},'EDIT'+(isRecur?' SERIES':'')),
+      h('button',{className:'cta ghost danger', style:{flex:1}, onClick:()=>{
+        if(isRecur){
+          e.exceptions = e.exceptions||[]; e.exceptions.push(ev.date);
+          db.schedule = db.schedule.map(x=>x.id===e.id?e:x);
+          toast('Removed this occurrence');
+        } else {
+          db.schedule = db.schedule.filter(x=>x.id!==e.id);
+          toast('Workout removed');
+        }
+        back.remove(); render();
+      }}, isRecur?'SKIP THIS DAY':'DELETE')),
+    isRecur && h('button',{className:'cta ghost danger', style:{marginTop:'10px'}, onClick:()=>{
+      db.schedule = db.schedule.filter(x=>x.id!==e.id);
+      back.remove(); render(); toast('Series deleted');
+    }},'DELETE ENTIRE SERIES'));
+}
+
+/* ── workout session ───────────────────────────────────────────────── */
+function startSession(ev){
+  const w = ev.workout || getWorkout(ev.entry.workoutId);
+  if(!w) return;
+  STATE.session = {
+    entryId: ev.entry ? ev.entry.id : null,
+    date: ev.date || today(),
+    workoutId: w.id, name: w.name,
+    startedAt: Date.now(), finished: false,
+    ex: w.ex.map(([name,sets,reps])=>({name, reps, sets:Array.from({length:sets},()=>({done:false, weight:'', reps:''}))})),
+  };
+  render();
+}
+function SessionScreen(){
+  const s = STATE.session;
+  const wrap = h('div',{className:'screen anim-fade'});
+  if(s.finished){
+    const totalSets = s.ex.reduce((n,e)=>n+e.sets.filter(x=>x.done).length,0);
+    const mins = Math.max(1, Math.round((Date.now()-s.startedAt)/60000));
+    wrap.append(h('div',{className:'scrolly'},
+      h('div',{className:'doneburst'},
+        h('div',{className:'big'},'🔥'),
+        h('h2',{},'Crushed it!'),
+        h('p',{}, `${s.name} — ${totalSets} sets in ${mins} min.\n🔥 Streak: ${streakCount()} day${streakCount()===1?'':'s'}. Keep the fire burning.`),
+        h('button',{className:'cta', onClick:()=>{STATE.session=null; STATE.tab='today'; render();}},'DONE'))));
+    return wrap;
+  }
+  wrap.append(h('div',{className:'app-bar'},
+    h('button',{className:'icon-btn', onClick:()=>{ if(confirm('Quit this workout? Progress won’t be saved.')){STATE.session=null; render();} }},'✕'),
+    h('div',{className:'title'}, s.name),
+    h('span',{style:{width:'34px'}})));
+  const body = h('div',{className:'scrolly'});
+  for(const ex of s.ex){
+    const card = h('div',{className:'card'});
+    card.append(h('div',{className:'exhead'}, h('b',{},ex.name), h('span',{}, `target ${ex.reps} reps`)));
+    ex.sets.forEach((set,i)=>{
+      const wInp = h('input',{type:'number', inputmode:'decimal', placeholder:'kg', value:set.weight});
+      wInp.addEventListener('input',()=>set.weight=wInp.value);
+      const rInp = h('input',{type:'number', inputmode:'numeric', placeholder:ex.reps.replace(/\D/g,'')||'reps', value:set.reps});
+      rInp.addEventListener('input',()=>set.reps=rInp.value);
+      const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{set.done=!set.done; tick.classList.toggle('on'); tick.textContent='✓';}},'✓');
+      card.append(h('div',{className:'setrow'},
+        h('span',{className:'snum'},'S'+(i+1)), wInp, h('span',{className:'unit'},'kg'), rInp, h('span',{className:'unit'},'reps'), tick));
+    });
+    body.append(card);
+  }
+  body.append(h('button',{className:'cta', onClick:()=>{
+    const anyDone = s.ex.some(e=>e.sets.some(x=>x.done));
+    if(!anyDone && !confirm('No sets ticked — finish anyway?')) return;
+    const logs = db.logs;
+    logs.push({id:uid(), date:s.date, entryId:s.entryId, workoutId:s.workoutId, name:s.name,
+      finishedAt:Date.now(), mins:Math.round((Date.now()-s.startedAt)/60000),
+      ex:s.ex.map(e=>({name:e.name, sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps}))}))});
+    db.logs = logs;
+    s.finished = true; render();
+  }},'FINISH WORKOUT 🏁'));
+  wrap.append(body);
+  return wrap;
+}
+
+/* ── Library ───────────────────────────────────────────────────────── */
+const LIB = { view:'plans', muscle:'all', onlyMine:true };
+function LibraryScreen(){
+  const wrap = h('div',{className:'screen anim-fade'});
+  wrap.append(h('div',{className:'app-bar'},
+    h('div',{className:'title'},'Library'),
+    h('button',{className:'icon-btn', title:'Settings', onClick:settingsSheet},'⚙︎')));
+  const seg = h('div',{className:'cal-seg'});
+  [['plans','Plans'],['exercises','Exercises'],['ask','Ask Claude']].forEach(([v,l])=>
+    seg.append(h('button',{className:LIB.view===v?'on':'', onClick:()=>{LIB.view=v; render();}}, l)));
+  wrap.append(seg);
+  const body = h('div',{className:'scrolly'});
+  if(LIB.view==='plans') buildPlans(body);
+  else if(LIB.view==='exercises') buildExercises(body);
+  else buildAsk(body);
+  wrap.append(body);
+  return wrap;
+}
+function buildPlans(body){
+  body.append(h('div',{className:'sl', style:{marginTop:'4px'}},'Preset workout plans'));
+  for(const p of PLANS){
+    body.append(h('div',{className:'plan-card', onClick:()=>planSheet(p)},
+      h('h4',{}, p.name),
+      h('div',{className:'pd'}, p.days+' — '+p.desc),
+      h('div',{className:'tags'}, p.tags.map(t=>h('span',{className:'tag'},t)))));
+  }
+  body.append(h('div',{className:'sl'},'Custom workouts'));
+  for(const c of db.custom){
+    body.append(h('div',{className:'plan-card'},
+      h('h4',{}, c.name),
+      h('div',{className:'pd'}, c.ex.map(e=>e[0]).join(' · ')),
+      h('div',{className:'btnrow'},
+        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>scheduleSheet(today(),null,{id:uid(),workoutId:c.id,date:today(),time:null,recur:{freq:'none'},until:null,exceptions:[]})},'SCHEDULE'),
+        h('button',{className:'cta ghost danger', style:{flex:1, padding:'10px'}, onClick:()=>{ db.custom = db.custom.filter(x=>x.id!==c.id); render(); }},'DELETE'))));
+  }
+  body.append(h('button',{className:'cta ghost', onClick:customSheet},'＋ CREATE CUSTOM WORKOUT'));
+}
+function planSheet(p){
+  const dowName = n=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][n];
+  const back = sheet(
+    h('h3',{}, p.name),
+    h('div',{className:'meta'}, p.days+' — '+p.desc),
+    h('div',{className:'card'},
+      p.sched.map(([dow,wid])=>{
+        const w = WORKOUTS[wid];
+        return h('div',{className:'exrow'}, h('span',{}, dowName(dow)+' — '+w.name), h('span',{className:'set'}, w.mins+' min'));
+      })),
+    h('div',{className:'meta', style:{marginTop:'10px'}},'Scheduling adds each session as a weekly repeating workout starting this week.'),
+    h('button',{className:'cta', onClick:()=>{
+      const list = db.schedule;
+      const monday = wkStart(new Date());
+      for(const [dow,wid] of p.sched){
+        const offset = (dow===0?6:dow-1);
+        let d = addDays(monday, offset);
+        if(ds(d) < today()) d = addDays(d,7);
+        list.push({id:uid(), workoutId:wid, date:ds(d), time:null,
+          recur:{freq:'weekly', interval:1, days:[dow]}, until:null, exceptions:[]});
+      }
+      db.schedule = list;
+      back.remove(); STATE.tab='calendar'; STATE.calView='week'; render();
+      toast(p.name+' added to your calendar 🔥');
+    }},'SCHEDULE THIS PLAN'));
+}
+function customSheet(){
+  const nameInp = h('input',{className:'inp', placeholder:'e.g. Saturday Smash'});
+  const txt = h('textarea',{className:'inp', rows:'6', placeholder:'One exercise per line:\nBench Press x 4 x 8\nPull-Up x 3 x 10'});
+  const back = sheet(
+    h('h3',{},'Custom workout'),
+    h('div',{className:'field'}, h('label',{},'Name'), nameInp),
+    h('div',{className:'field'}, h('label',{},'Exercises (Name x sets x reps)'), txt),
+    h('button',{className:'cta', onClick:()=>{
+      const name = nameInp.value.trim(); if(!name) return toast('Give it a name');
+      const ex = txt.value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
+        const parts = l.split(/\s*[x×]\s*/i);
+        return [parts[0]||'Exercise', parseInt(parts[1])||3, (parts[2]||'10').trim()];
+      });
+      if(!ex.length) return toast('Add at least one exercise');
+      const list = db.custom; list.push({id:'c_'+uid(), name, focus:'Custom workout', mins:40, ex}); db.custom = list;
+      back.remove(); render(); toast('Custom workout saved');
+    }},'SAVE WORKOUT'));
+}
+function buildExercises(body){
+  const mchips = h('div',{className:'chiprow', style:{marginTop:'4px'}});
+  MUSCLES.forEach(m=>mchips.append(h('button',{className:'chip'+(LIB.muscle===m?' on':''),
+    onClick:()=>{LIB.muscle=m; render();}}, m[0].toUpperCase()+m.slice(1))));
+  body.append(mchips);
+  const mineChip = h('button',{className:'chip'+(LIB.onlyMine?' on':''), onClick:()=>{LIB.onlyMine=!LIB.onlyMine; render();}},
+    LIB.onlyMine?'✓ My equipment only':'Show all equipment');
+  body.append(h('div',{className:'chiprow'}, mineChip,
+    h('button',{className:'chip', onClick:settingsSheet},'⚙︎ My equipment: '+(db.equipment.length? db.equipment.join(', ') : 'bodyweight only'))));
+  const have = new Set(db.equipment);
+  const canDo = ex => ex.equip.length===0 || ex.equip.some(q=>have.has(q));
+  let list = EXERCISES.filter(ex=>LIB.muscle==='all'||ex.muscle===LIB.muscle);
+  const card = h('div',{className:'card'});
+  let shown = 0;
+  for(const ex of list){
+    const ok = canDo(ex);
+    if(LIB.onlyMine && !ok){
+      if(ex.sub){
+        card.append(h('div',{className:'ex-item blocked'},
+          h('div',{}, h('div',{className:'en'},ex.name), h('div',{className:'sub'},'↳ try instead: '+ex.sub)),
+          h('span',{className:'mus'},ex.muscle)));
+        shown++;
+      }
+      continue;
+    }
+    card.append(h('div',{className:'ex-item'+(ok?'':' blocked')},
+      h('div',{}, h('div',{className:'en'},ex.name),
+        h('div',{className:'eq'}, ex.equip.length ? ex.equip.join(' / ') : 'bodyweight')),
+      h('span',{className:'mus'},ex.muscle)));
+    shown++;
+  }
+  if(!shown) card.append(h('div',{className:'empty'},'Nothing here for this filter.'));
+  body.append(card);
+}
+function buildAsk(body){
+  body.append(
+    h('div',{className:'sl', style:{marginTop:'4px'}},'Your AI coach'),
+    h('div',{className:'card'}, h('div',{style:{fontSize:'13.5px', lineHeight:1.6, padding:'6px 0'}},
+      'Ask Claude for custom meal plans, dietary advice, workout programming, exercise substitutions — anything fitness. It knows your equipment and your recent training.')),
+    h('button',{className:'cta', onClick:()=>{STATE.tab='coach'; render();}},'OPEN COACH 💬'));
+}
+
+/* ── Coach (Claude) ────────────────────────────────────────────────── */
+const COACH_MODEL = 'claude-opus-4-8';
+function coachSystemPrompt(){
+  const recent = db.logs.slice(-6).map(l=>`${l.date}: ${l.name}`).join('; ') || 'none yet';
+  const sched = db.schedule.slice(0,8).map(e=>{ const w=getWorkout(e.workoutId); return (w?w.name:'?')+' ('+recurLabel(e)+')'; }).join('; ') || 'nothing scheduled';
+  return `You are Brologue Coach — a warm, motivating, no-nonsense fitness and nutrition coach inside the Brologue workout app. Give practical, specific, safe advice on training, meal plans, and diet. Use short sections and bullet lists; keep answers tight and actionable; plain text only (no markdown tables). Add a brief note to consult a professional for medical issues when relevant.
+User context — available equipment: ${db.equipment.length?db.equipment.join(', '):'bodyweight only'}. Current schedule: ${sched}. Recent completed workouts: ${recent}. Current streak: ${streakCount()} days.`;
+}
+const DEMO_REPLIES = [
+  [/meal|diet|eat|nutrition|food|protein|cut|bulk/i,
+`Here's a simple day of eating for muscle gain (~2,600 kcal):
+
+• Breakfast — 3 eggs + oats with banana & peanut butter
+• Lunch — chicken breast, rice, mixed veg, olive oil
+• Snack — Greek yogurt + berries + handful of almonds
+• Dinner — salmon or lean beef, potatoes, big salad
+• Before bed — cottage cheese or a casein shake
+
+Aim for ~1.6–2.2 g protein per kg bodyweight and drink 2–3 L of water. Adjust portions up or down based on how your weight trends over 2 weeks.`],
+  [/substitut|replace|instead|alternative/i,
+`Great question. Rules of thumb for substitutions:
+
+• Match the movement pattern (push, pull, hinge, squat, carry)
+• Barbell bench → dumbbell bench or push-ups
+• Lat pulldown → pull-ups or band rows
+• Leg press → goblet squats or lunges
+
+Check the Library tab — exercises you can't do with your equipment show a suggested swap automatically.`],
+  [/rest|recover|sore|sleep|pain/i,
+`Recovery is where the gains happen:
+
+• Sleep 7–9 hours — non-negotiable
+• Keep 48h between hitting the same muscle group hard
+• Light walking or stretching on rest days beats total inactivity
+• Persistent sharp pain ≠ soreness — see a physio for that
+
+Your streak counts rest days as part of the plan, so don't fear them.`],
+  [/.*/,
+`Here's my take:
+
+• Train each muscle 2× per week for best growth
+• Progressive overload: add a rep or 2.5 kg whenever you hit your target
+• Compound lifts first, isolation after
+• Consistency beats intensity — 3 good sessions every week wins
+
+Want a custom meal plan or a tweak to your current split? Just ask. (Add your Anthropic API key in Settings ⚙︎ for real, personalised answers from Claude.)`],
+];
+async function askClaude(history){
+  const key = db.apiKey;
+  if(!key){
+    await new Promise(r=>setTimeout(r, 700));
+    const last = history[history.length-1].content;
+    return {demo:true, text: DEMO_REPLIES.find(([re])=>re.test(last))[1]};
+  }
+  const res = await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'content-type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true',
+    },
+    body: JSON.stringify({
+      model: COACH_MODEL,
+      max_tokens: 2048,
+      system: coachSystemPrompt(),
+      messages: history,
+    }),
+  });
+  if(!res.ok){
+    let msg = 'API error '+res.status;
+    try{ const j = await res.json(); if(j.error && j.error.message) msg = j.error.message; }catch(e){}
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  const text = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n') || '(no reply)';
+  return {demo:false, text};
+}
+function CoachScreen(){
+  const wrap = h('div',{className:'screen'});
+  wrap.append(h('div',{className:'app-bar'},
+    h('div',{className:'title'},'Coach'),
+    h('button',{className:'icon-btn', title:'Settings', onClick:settingsSheet},'⚙︎')));
+  if(!db.apiKey) wrap.append(h('div',{className:'keynote'},
+    '🔑 Demo mode — answers are canned examples. Add your own Anthropic API key in Settings ⚙︎ to chat with the real Claude. Your key stays on this device only.'));
+  const chat = h('div',{className:'chat'});
+  const hist = db.coach;
+  if(!hist.length) chat.append(h('div',{className:'msg bot'},
+    "Hey! I'm your Brologue coach. 💪 Ask me for meal plans, dietary advice, workout programming, or exercise swaps — I know what equipment you've got and what you've been training."));
+  for(const m of hist){
+    const el = h('div',{className:'msg '+(m.role==='user'?'user':'bot')+(m.demo?' demo':'')});
+    if(m.demo) el.append(h('span',{className:'demo-tag'},'DEMO REPLY'));
+    el.append(m.content);
+    chat.append(el);
+  }
+  const chips = h('div',{className:'chiprow', style:{padding:'0 16px 8px'}},
+    [['🍽 Meal plan','Build me a one-day meal plan that fits my training.'],
+     ['🥦 Diet advice','Give me 5 practical diet tips for my goals.'],
+     ['🏋️ Workout advice','Review my weekly schedule and suggest improvements.'],
+     ['🔁 Substitute','Suggest substitutes for exercises I lack equipment for.']]
+    .map(([l,q])=>h('button',{className:'chip', onClick:()=>send(q)}, l)));
+  const ta = h('textarea',{className:'inp', rows:'1', placeholder:'Ask your coach anything…',
+    style:{background:'#1d1413'}});
+  ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(ta.value); } });
+  const sendBtn = h('button',{className:'send', onClick:()=>send(ta.value)},'➤');
+  const inputBar = h('div',{className:'coach-input'}, ta, sendBtn);
+  async function send(text){
+    text = (text||'').trim();
+    if(!text || STATE.coachBusy) return;
+    ta.value='';
+    const hist2 = db.coach;
+    hist2.push({role:'user', content:text});
+    db.coach = hist2.slice(-24);
+    STATE.coachBusy = true; render();
+    const chatEl = document.querySelector('.chat');
+    if(chatEl){ chatEl.append(h('div',{className:'typing'},'Coach is thinking…')); chatEl.scrollTop = chatEl.scrollHeight; }
+    try{
+      const apiHist = db.coach.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role, content:m.content}));
+      const {demo, text:reply} = await askClaude(apiHist);
+      const hist3 = db.coach;
+      hist3.push({role:'assistant', content:reply, demo});
+      db.coach = hist3.slice(-24);
+    }catch(err){
+      const hist3 = db.coach;
+      hist3.push({role:'assistant', content:'⚠️ '+err.message+'\n\nCheck your API key in Settings, or try again.', demo:false});
+      db.coach = hist3.slice(-24);
+    }
+    STATE.coachBusy = false; render();
+    const c2 = document.querySelector('.chat'); if(c2) c2.scrollTop = c2.scrollHeight;
+  }
+  wrap.append(chat, chips, inputBar);
+  setTimeout(()=>{ chat.scrollTop = chat.scrollHeight; },30);
+  return wrap;
+}
+
+/* ── settings ──────────────────────────────────────────────────────── */
+function settingsSheet(){
+  const keyInp = h('input',{className:'inp', type:'password', placeholder:'sk-ant-…', value:db.apiKey});
+  const eqChips = h('div',{className:'chiprow'});
+  const have = new Set(db.equipment);
+  EQUIPMENT.forEach(q=>{
+    const c = h('button',{className:'chip'+(have.has(q)?' on':''), onClick:e=>{
+      e.preventDefault();
+      if(have.has(q)) have.delete(q); else have.add(q);
+      c.classList.toggle('on');
+      db.equipment = [...have];
+    }}, q);
+    eqChips.append(c);
+  });
+  const back = sheet(
+    h('h3',{},'Settings'),
+    h('div',{className:'field'}, h('label',{},'My equipment (bodyweight always counts)'), eqChips),
+    h('div',{className:'field'}, h('label',{},'Anthropic API key — for the Claude coach'), keyInp,
+      h('div',{className:'meta', style:{marginTop:'6px'}},'Stored only on this device. Get a key at console.anthropic.com. Without one, the coach runs in demo mode.')),
+    h('button',{className:'cta', onClick:()=>{ db.apiKey = keyInp.value.trim(); back.remove(); render(); toast('Settings saved'); }},'SAVE'),
+    h('button',{className:'cta ghost danger', style:{marginTop:'10px'}, onClick:()=>{
+      if(confirm('Erase ALL Brologue data on this device (schedule, logs, settings)?')){ localStorage.clear(); location.reload(); }
+    }},'RESET ALL DATA'));
+}
+
+/* ── PWA: install banner + service worker + splash ─────────────────── */
+function showInstallBanner(){
+  if(store.get('bl_install_dismissed', false)) return;
+  if(window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) return;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if(!STATE.deferredInstall && !isIOS) return;
+  const bar = h('div',{className:'install-bar'},
+    h('span',{style:{fontSize:'22px'}},'🔥'),
+    h('div',{className:'t'}, isIOS && !STATE.deferredInstall
+      ? 'Install Brologue: tap Share, then “Add to Home Screen”.'
+      : 'Install Brologue on your phone for the full app experience.'),
+    STATE.deferredInstall ? h('button',{className:'go', onClick:async()=>{
+        bar.remove(); STATE.deferredInstall.prompt();
+        await STATE.deferredInstall.userChoice; STATE.deferredInstall=null;
+      }},'INSTALL') : null,
+    h('button',{className:'icon-btn', onClick:()=>{ bar.remove(); store.set('bl_install_dismissed', true); }},'✕'));
+  document.body.append(bar);
+}
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  STATE.deferredInstall = e;
+  showInstallBanner();
+});
+
+function boot(){
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+  if(standalone){
+    const sp = document.getElementById('splash');
+    sp.style.display = 'flex';
+    setTimeout(()=>{ sp.style.display='none'; }, 900);
+  }
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+  render();
+  setTimeout(showInstallBanner, 2500);
+}
+boot();
+</script>
+</body>
+</html>
