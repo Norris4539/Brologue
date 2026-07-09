@@ -81,50 +81,6 @@
     text-transform:uppercase;border-right:1.5px solid var(--ink)}
   .cal-seg button:last-child{border-right:0}
   .cal-seg button.on{background:var(--ink);color:var(--paper)}
-  .cal-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px}
-  .cal-side{display:flex;align-items:center;gap:6px}
-  .cal-step{font-size:19px;line-height:1;color:var(--ink);padding:3px 12px;border:1.5px solid var(--ink);background:var(--paper2)}
-  .cal-per{font-family:var(--wood);font-size:16px;letter-spacing:1px;text-transform:uppercase}
-  .cal-today{font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--paper);background:var(--red);padding:7px 12px;
-    text-transform:uppercase;font-family:var(--small);border:1.5px solid var(--ink)}
-
-  /* time grid (day/week) */
-  .tg-scroll{flex:1;overflow-y:auto;min-height:0;padding:0 10px calc(90px + var(--sab))}
-  .tg-head{display:flex;position:sticky;top:0;z-index:5;background:var(--paper)}
-  .tg-corner{width:44px;flex:none}
-  .tg-dayhead{flex:1;text-align:center;padding:7px 0 6px;border-bottom:1.5px solid var(--ink)}
-  .tg-dayhead .dow{display:block;font-size:9px;font-weight:800;color:var(--tan);letter-spacing:1.5px;font-family:var(--small)}
-  .tg-dayhead .wd{display:inline-block;font-family:var(--wood);font-size:15px;color:var(--ink);margin-top:2px;min-width:24px;line-height:24px}
-  .tg-dayhead.today .wd{background:var(--ink);color:var(--paper)}
-  .tg-body{display:flex;position:relative}
-  .tg-gutter{width:44px;flex:none}
-  .tg-hour{height:48px;position:relative}
-  .tg-hour span{position:absolute;top:-7px;right:8px;font-size:9px;color:var(--tan);font-family:var(--small)}
-  .tg-cols{flex:1;display:flex;position:relative;background-image:linear-gradient(to bottom,var(--line) 1px,transparent 1px);background-size:100% 48px}
-  .tg-col{flex:1;position:relative;border-left:1px solid var(--line);min-width:0}
-  .tg-event{position:absolute;padding:4px 6px;overflow:hidden;cursor:pointer;
-    background:var(--paper2);border:1.5px solid var(--red);border-left:4px solid var(--red)}
-  .tg-event.done{border-color:var(--tan);border-left-color:var(--tan);background:#e5d7b8}
-  .tg-ev-time{font-size:8.5px;font-weight:800;color:var(--red);font-family:var(--small);letter-spacing:.5px}
-  .tg-event.done .tg-ev-time{color:var(--faded)}
-  .tg-ev-title{font-family:var(--wood);font-size:12px;letter-spacing:.5px;color:var(--ink);text-transform:uppercase;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .tg-now{position:absolute;left:0;right:0;height:2px;background:var(--red);z-index:4;pointer-events:none}
-  .tg-now-dot{position:absolute;top:-3px;width:8px;height:8px;border-radius:50%;background:var(--red)}
-
-  /* month grid */
-  .mn-dow-hd{display:grid;grid-template-columns:repeat(7,1fr);padding:0 10px}
-  .mn-dow-cell{text-align:center;font-size:9px;font-weight:800;color:var(--tan);letter-spacing:1.5px;padding:6px 0;font-family:var(--small)}
-  .mn-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-auto-rows:minmax(64px,auto);gap:2px;padding:0 10px calc(90px + var(--sab))}
-  .mn-cell{background:var(--paper2);border:1px solid var(--tan);padding:3px;overflow:hidden;cursor:pointer;min-width:0}
-  .mn-cell.other{opacity:.4}
-  .mn-num{font-family:var(--wood);font-size:12px;color:var(--ink);width:20px;line-height:20px;text-align:center;margin:1px auto 2px}
-  .mn-num.today{background:var(--ink);color:var(--paper)}
-  .cal-event{font-size:8.5px;font-weight:700;color:var(--paper);background:var(--red);border-left:2px solid var(--ink);
-    padding:1px 3px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;font-family:var(--small)}
-  .cal-event.done{background:#d5c5a0;color:var(--faded);border-left-color:var(--tan)}
-  .cal-more{font-size:8.5px;color:var(--faded);font-weight:700;padding-left:3px}
-
   /* mini month (Today screen) */
   .mini-cal{background:var(--paper2);border:1.5px solid var(--ink);outline:1px solid var(--ink);outline-offset:3px;
     padding:12px 10px 10px;margin:10px 4px 4px}
@@ -138,6 +94,34 @@
   .mini-d.done::after{background:var(--tan)}
   .mini-d.today{background:var(--ink);color:var(--paper);font-weight:900}
   .mini-d.today::after{background:var(--paper)}
+
+  /* day sheet */
+  .day-ev{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px dotted var(--tan);cursor:pointer}
+  .day-ev:last-child{border-bottom:0}
+  .day-ev .dn{font-family:var(--wood);font-size:17px;letter-spacing:.5px;text-transform:uppercase}
+  .day-ev .dm{font-size:11px;color:var(--faded);font-style:italic;margin-top:1px}
+  .day-ev .dt{font-family:var(--small);font-size:10px;font-weight:800;color:var(--red);letter-spacing:1px;white-space:nowrap}
+  .day-ev.done .dn{color:var(--faded);text-decoration:line-through}
+
+  /* custom workout builder */
+  .bx{border:1.5px solid var(--ink);background:var(--paper2);padding:9px 11px;margin-top:10px}
+  .bx-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .bx-name{font-family:var(--wood);font-size:17px;letter-spacing:.5px;text-transform:uppercase}
+  .bx-mus{font-size:8.5px;font-weight:800;letter-spacing:1.5px;color:var(--red);font-family:var(--small);text-transform:uppercase;margin-top:2px}
+  .bx-x{color:var(--red);font-size:15px;padding:2px 6px}
+  .bx-ctl{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+  .bx-f{display:flex;align-items:center;gap:6px}
+  .bx-f label{font-size:8.5px;font-weight:800;letter-spacing:1px;color:var(--faded);font-family:var(--small);text-transform:uppercase}
+  .bx-f input{width:56px;background:var(--paper);border:1.5px solid var(--ink);color:var(--ink);font-size:13px;padding:6px 4px;text-align:center;outline:none;border-radius:0}
+
+  /* exercise picker */
+  .pick-list{max-height:44dvh;overflow-y:auto;border:1.5px solid var(--ink);background:var(--paper2);margin-top:10px}
+  .pick-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px dotted var(--tan);cursor:pointer}
+  .pick-item:last-child{border-bottom:0}
+  .pick-item:active{background:#e5d7b8}
+  .pick-item .pn{font-size:13.5px;font-weight:700}
+  .pick-item .pe{font-size:10px;color:var(--faded);font-style:italic;margin-top:1px}
+  .pick-item .pm{font-size:8.5px;font-weight:800;letter-spacing:1.5px;color:var(--red);font-family:var(--small);text-transform:uppercase}
 
   /* tab bar */
   .tabs{flex:none;display:flex;justify-content:space-around;align-items:center;background:var(--ink);
@@ -294,7 +278,7 @@ const EXERCISES = [
   ['Hip Thrust','legs',['barbell','bench'],'Single-Leg Glute Bridge'],
   ['Glute Bridge','legs',[],null],
   ['Calf Raise','legs',[],null],
-  ['Wall Sit','legs',[],null],
+  ['Wall Sit','legs',[],null,1],
   ['Step-Up','legs',['bench'],null],
   ['Nordic Curl','legs',[],null],
   ['Barbell Bench Press','chest',['barbell','bench'],'Push-Up'],
@@ -328,7 +312,7 @@ const EXERCISES = [
   ['Band Row','back',['bands'],null],
   ['T-Bar Row','back',['barbell','machine'],'Inverted Row'],
   ['Back Extension','back',['machine','bench'],'Superman Hold'],
-  ['Superman Hold','back',[],null],
+  ['Superman Hold','back',[],null,1],
   ['Barbell Curl','arms',['barbell'],'Chin-Up'],
   ['Dumbbell Curl','arms',['dumbbell'],'Backpack Curl'],
   ['Hammer Curl','arms',['dumbbell'],'Backpack Curl'],
@@ -343,16 +327,16 @@ const EXERCISES = [
   ['Kettlebell Swing','full',['kettlebell'],'Jump Squat'],
   ['Clean & Press','full',['barbell','dumbbell','kettlebell'],'Burpee'],
   ['Thruster','full',['barbell','dumbbell'],'Jump Squat'],
-  ['Farmer’s Carry','full',['dumbbell','kettlebell'],null],
+  ['Farmer’s Carry','full',['dumbbell','kettlebell'],null,1],
   ['Turkish Get-Up','full',['kettlebell','dumbbell'],null],
   ['Burpee','cardio',[],null],
-  ['Mountain Climber','cardio',[],null],
+  ['Mountain Climber','cardio',[],null,1],
   ['Jump Squat','cardio',[],null],
-  ['Jumping Jack','cardio',[],null],
-  ['High Knees','cardio',[],null],
-  ['Jump Rope','cardio',['bands'],'High Knees'],
-  ['Plank','core',[],null],
-  ['Side Plank','core',[],null],
+  ['Jumping Jack','cardio',[],null,1],
+  ['High Knees','cardio',[],null,1],
+  ['Jump Rope','cardio',['bands'],'High Knees',1],
+  ['Plank','core',[],null,1],
+  ['Side Plank','core',[],null,1],
   ['Hanging Leg Raise','core',['pull-up bar'],'Lying Leg Raise'],
   ['Lying Leg Raise','core',[],null],
   ['Russian Twist','core',['dumbbell','kettlebell'],null],
@@ -360,8 +344,8 @@ const EXERCISES = [
   ['Bicycle Crunch','core',[],null],
   ['Ab Wheel Rollout','core',['bands'],'Plank Walk-Out'],
   ['Dead Bug','core',[],null],
-  ['Hollow Body Hold','core',[],null],
-].map(([name,muscle,equip,sub])=>({name,muscle,equip,sub}));
+  ['Hollow Body Hold','core',[],null,1],
+].map(([name,muscle,equip,sub,timed])=>({name,muscle,equip,sub,timed:!!timed}));
 
 const MUSCLES = ['all','chest','back','legs','shoulders','arms','core','cardio','full'];
 
@@ -413,8 +397,6 @@ const store = {
 };
 const STATE = {
   tab: 'today',
-  calView: store.get('bl_cal_view','month'),
-  calDate: new Date(),
   miniDate: new Date(),
   session: null,             // active workout session
   coachBusy: false,
@@ -542,7 +524,6 @@ function render(){
   const root = APP(); root.innerHTML = '';
   let scr;
   if(STATE.session) scr = SessionScreen();
-  else if(STATE.tab === 'calendar') scr = CalendarScreen();
   else if(STATE.tab === 'library')  scr = LibraryScreen();
   else if(STATE.tab === 'coach')    scr = CoachScreen();
   else scr = TodayScreen();
@@ -550,7 +531,7 @@ function render(){
   if(!STATE.session) root.append(TabBar());
 }
 function TabBar(){
-  const tabs = [['today','⚡','Today'],['calendar','📅','Calendar'],['library','📚','Library'],['coach','💬','Coach']];
+  const tabs = [['today','⚡','Today'],['library','📚','Library'],['coach','💬','Coach']];
   return h('div',{className:'tabs'}, tabs.map(([id,ic,label])=>
     h('button',{className:'tab'+(STATE.tab===id?' on':''), onClick:()=>{STATE.tab=id; render();}},
       h('span',{className:'ic'},ic), h('span',{},label))));
@@ -588,7 +569,7 @@ function TodayScreen(){
         h('span',{className:'streak'+(streak?'':' cold')}, streak ? `🔥 ${streak}-day streak` : '🔥 Start your streak today'),
         h('span',{className:'quote'}, quote)),
       h('div',{className:'card'},
-        w.ex.map(([name,sets,reps])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}`)))),
+        w.ex.map(([name,sets,reps,wt])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}${wt?` @ ${wt}kg`:''}`)))),
       next.done
         ? h('button',{className:'cta ghost', onClick:()=>startSession(next)},'✓ COMPLETED — DO IT AGAIN')
         : h('button',{className:'cta', onClick:()=>startSession(next)},'HIT THE IRON →'));
@@ -635,178 +616,34 @@ function MiniMonth(){
     const s = ds(date);
     const evs = other?[]:eventsForDate(s);
     const cls = 'mini-d'+(other?' dim':'')+(s===today()?' today':'')+(evs.length?(evs.every(e=>e.done)?' ev done':' ev'):'');
-    grid.append(h('div',{className:cls, onClick:()=>{STATE.calDate=date; STATE.calView='day'; store.set('bl_cal_view','day'); STATE.tab='calendar'; render();}}, date.getDate()));
+    grid.append(h('div',{className:cls, onClick:()=>daySheet(s)}, date.getDate()));
   }
   box.append(grid);
   return box;
 }
 
-/* ── Calendar (Dokit layout) ───────────────────────────────────────── */
-function CalendarScreen(){
-  const wrap = h('div',{className:'screen'});
-  wrap.append(h('div',{className:'app-bar'},
-    h('div',{className:'title'},'Calendar'),
-    h('button',{className:'icon-btn', style:{color:'var(--accent)', fontSize:'24px'}, title:'Schedule workout',
-      onClick:()=>scheduleSheet(ds(STATE.calDate))},'＋')));
-  const seg = h('div',{className:'cal-seg'});
-  ['day','week','month'].forEach(v=>seg.append(h('button',{className:STATE.calView===v?'on':'',
-    onClick:()=>{STATE.calView=v; store.set('bl_cal_view',v); render();}}, v[0].toUpperCase()+v.slice(1))));
-  wrap.append(seg);
-  const bar = h('div',{className:'cal-bar'});
-  bar.append(
-    h('div',{className:'cal-side'}, h('button',{className:'cal-step', onClick:()=>{stepCal(-1); render();}},'‹')),
-    h('span',{className:'cal-per'}, calLabel()),
-    h('div',{className:'cal-side'},
-      h('button',{className:'cal-step', onClick:()=>{stepCal(1); render();}},'›'),
-      h('button',{className:'cal-today', onClick:()=>{STATE.calDate=new Date(); render();}},'Today')));
-  wrap.append(bar);
-  if(STATE.calView==='day')       wrap.append(DayView());
-  else if(STATE.calView==='week') wrap.append(WeekView());
-  else                            wrap.append(MonthView());
-  return wrap;
-}
-function calLabel(){
-  const d = STATE.calDate;
-  if(STATE.calView==='day')  return d.toLocaleDateString('en-US',{weekday:'long', day:'numeric', month:'long'});
-  if(STATE.calView==='week'){ const m=wkStart(d), e=addDays(m,6);
-    return `${m.toLocaleDateString('en-US',{day:'numeric',month:'short'})} – ${e.toLocaleDateString('en-US',{day:'numeric',month:'short',year:'numeric'})}`; }
-  return d.toLocaleDateString('en-US',{month:'long', year:'numeric'});
-}
-function stepCal(dir){
-  const d = new Date(STATE.calDate);
-  if(STATE.calView==='day') d.setDate(d.getDate()+dir);
-  else if(STATE.calView==='week') d.setDate(d.getDate()+dir*7);
-  else d.setMonth(d.getMonth()+dir);
-  STATE.calDate = d;
-}
-function layoutDay(evs){
-  const items = evs.map(e=>{ const start=minutesOf(e.time); return {e, start, end:start+EVENT_MIN, lane:0, lanes:1}; })
-    .sort((a,b)=>a.start-b.start);
-  let cluster=[], clusterEnd=-1;
-  const flush=()=>{
-    if(!cluster.length) return;
-    const laneEnds=[];
-    for(const it of cluster){
-      let placed=false;
-      for(let i=0;i<laneEnds.length;i++) if(it.start>=laneEnds[i]){ it.lane=i; laneEnds[i]=it.end; placed=true; break; }
-      if(!placed){ it.lane=laneEnds.length; laneEnds.push(it.end); }
-    }
-    for(const it of cluster) it.lanes=laneEnds.length;
-    cluster=[];
-  };
-  for(const it of items){
-    if(!cluster.length){ cluster=[it]; clusterEnd=it.end; }
-    else if(it.start<clusterEnd){ cluster.push(it); clusterEnd=Math.max(clusterEnd,it.end); }
-    else { flush(); cluster=[it]; clusterEnd=it.end; }
-  }
-  flush();
-  return items.map(it=>({ev:it.e, top:it.start/60*HOUR_PX, height:EVENT_MIN/60*HOUR_PX, widthPct:100/it.lanes, leftPct:it.lane*100/it.lanes}));
-}
-function tgEvent(ev, geo){
-  return h('div',{className:'tg-event'+(ev.done?' done':''),
-    style:{top:geo.top+'px', height:geo.height+'px', left:`calc(${geo.leftPct}% + 2px)`, width:`calc(${geo.widthPct}% - 4px)`},
-    onClick:()=>eventSheet(ev)},
-    h('div',{className:'tg-ev-time'}, fmtTime(ev.time)),
-    h('div',{className:'tg-ev-title'}, ev.workout ? ev.workout.name : '?'));
-}
-function buildCol(dateStr){
-  const col = h('div',{className:'tg-col', onClick:e=>{
-    if(e.target!==col) return;
-    const hr = Math.floor((e.offsetY)/HOUR_PX);
-    scheduleSheet(dateStr, String(hr).padStart(2,'0')+':00');
-  }});
-  const timed = eventsForDate(dateStr).filter(e=>!!e.time);
-  layoutDay(timed).forEach(({ev,...geo})=>col.append(tgEvent(ev,geo)));
-  return col;
-}
-function allDayStrip(dates){
-  const untimed = dates.map(dstr=>eventsForDate(dstr).filter(e=>!e.time));
-  if(!untimed.some(l=>l.length)) return null;
-  const row = h('div',{style:{display:'flex', padding:'0 0 4px'}});
-  row.append(h('div',{style:{width:'44px', flex:'none', fontSize:'8.5px', color:'var(--dim)', paddingTop:'4px'}},'any'));
-  dates.forEach((dstr,i)=>{
-    const cell = h('div',{style:{flex:'1', minWidth:0, padding:'0 2px'}});
-    untimed[i].forEach(ev=>cell.append(h('div',{className:'cal-event'+(ev.done?' done':''), onClick:()=>eventSheet(ev)}, ev.workout?ev.workout.name:'?')));
-    row.append(cell);
-  });
-  return row;
-}
-function DayView(){
-  const dstr = ds(STATE.calDate);
-  const scroll = h('div',{className:'tg-scroll anim-fade'});
-  const strip = allDayStrip([dstr]); if(strip) scroll.append(strip);
-  const body = h('div',{className:'tg-body', style:{height:24*HOUR_PX+'px'}});
-  const gutter = h('div',{className:'tg-gutter'});
-  HOURS.forEach(hr=>{ const he=h('div',{className:'tg-hour'}); if(hr>0) he.append(h('span',{},hr+':00')); gutter.append(he); });
-  body.append(gutter);
-  const cols = h('div',{className:'tg-cols'});
-  cols.append(buildCol(dstr));
-  if(dstr===today()){ const n=new Date(); const top=(n.getHours()+n.getMinutes()/60)*HOUR_PX;
-    const nl=h('div',{className:'tg-now', style:{top:top+'px'}}); nl.append(h('span',{className:'tg-now-dot'})); cols.append(nl); }
-  body.append(cols); scroll.append(body);
-  setTimeout(()=>{ scroll.scrollTop = 6*HOUR_PX; },40);
-  return scroll;
-}
-function WeekView(){
-  const mon = wkStart(STATE.calDate);
-  const days = Array.from({length:7},(_,i)=>addDays(mon,i));
-  const scroll = h('div',{className:'tg-scroll anim-fade'});
-  const head = h('div',{className:'tg-head'});
-  head.append(h('div',{className:'tg-corner'}));
-  days.forEach((d,i)=>{
-    const isToday = ds(d)===today();
-    head.append(h('div',{className:'tg-dayhead'+(isToday?' today':'')},
-      h('span',{className:'dow'},DOW[i]), h('span',{className:'wd'},d.getDate())));
-  });
-  scroll.append(head);
-  const strip = allDayStrip(days.map(ds)); if(strip) scroll.append(strip);
-  const body = h('div',{className:'tg-body', style:{height:24*HOUR_PX+'px'}});
-  const gutter = h('div',{className:'tg-gutter'});
-  HOURS.forEach(hr=>{ const he=h('div',{className:'tg-hour'}); if(hr>0) he.append(h('span',{},hr+':00')); gutter.append(he); });
-  body.append(gutter);
-  const cols = h('div',{className:'tg-cols'});
-  let nowIdx=-1;
-  days.forEach((d,i)=>{ if(ds(d)===today()) nowIdx=i; cols.append(buildCol(ds(d))); });
-  if(nowIdx>=0){ const n=new Date(); const top=(n.getHours()+n.getMinutes()/60)*HOUR_PX;
-    const nl=h('div',{className:'tg-now', style:{top:top+'px'}});
-    nl.append(h('span',{className:'tg-now-dot', style:{left:(nowIdx/7*100)+'%'}})); cols.append(nl); }
-  body.append(cols); scroll.append(body);
-  setTimeout(()=>{ scroll.scrollTop = 6*HOUR_PX; },40);
-  return scroll;
-}
-function MonthView(){
-  const d = STATE.calDate, yr=d.getFullYear(), mo=d.getMonth();
-  const first = new Date(yr,mo,1); let sdow=first.getDay(); sdow = sdow===0?6:sdow-1;
-  const dim = new Date(yr,mo+1,0).getDate(), prevDim = new Date(yr,mo,0).getDate();
-  const cells=[];
-  for(let i=sdow-1;i>=0;i--) cells.push({date:new Date(yr,mo-1,prevDim-i), other:true});
-  for(let i=1;i<=dim;i++) cells.push({date:new Date(yr,mo,i), other:false});
-  while(cells.length<42) cells.push({date:new Date(yr,mo+1,cells.length-sdow-dim+1), other:true});
-  const wrap = h('div',{className:'anim-fade', style:{flex:'1', overflowY:'auto', minHeight:0}});
-  const dowHd = h('div',{className:'mn-dow-hd'});
-  DOW.forEach(dw=>dowHd.append(h('div',{className:'mn-dow-cell'},dw)));
-  wrap.append(dowHd);
-  const grid = h('div',{className:'mn-grid'});
-  for(const {date,other} of cells){
-    const dstr = ds(date);
-    const evs = other?[]:eventsForDate(dstr);
-    const cell = h('div',{className:'mn-cell'+(other?' other':''),
-      onClick:()=>{STATE.calDate=date; STATE.calView='day'; store.set('bl_cal_view','day'); render();}});
-    cell.append(h('div',{className:'mn-num'+(dstr===today()?' today':'')}, date.getDate()));
-    evs.slice(0,3).forEach(ev=>cell.append(h('div',{className:'cal-event'+(ev.done?' done':''),
-      onClick:e=>{e.stopPropagation(); eventSheet(ev);}}, ev.workout?ev.workout.name:'?')));
-    if(evs.length>3) cell.append(h('span',{className:'cal-more'},'+'+(evs.length-3)));
-    grid.append(cell);
-  }
-  wrap.append(grid);
-  return wrap;
+/* ── day sheet (mini calendar tap) ─────────────────────────────────── */
+function daySheet(dateStr){
+  const evs = eventsForDate(dateStr);
+  const back = sheet(
+    h('div',{className:'kick'}, fromDs(dateStr).toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}).toUpperCase()),
+    h('h3',{style:{marginTop:'4px'}}, evs.length ? 'The day’s iron' : 'Nothing on the bill'),
+    evs.length
+      ? h('div',{className:'card', style:{margin:'14px 0 0'}}, evs.map(ev=>
+          h('div',{className:'day-ev'+(ev.done?' done':''), onClick:()=>{back.remove(); eventSheet(ev);}},
+            h('div',{},
+              h('div',{className:'dn'}, (ev.done?'✓ ':'')+(ev.workout?ev.workout.name:'?')),
+              h('div',{className:'dm'}, recurLabel(ev.entry))),
+            h('span',{className:'dt'}, ev.time?fmtTime(ev.time):'ANY TIME'))))
+      : h('div',{className:'empty'},'A rest day — or an opportunity.'),
+    h('button',{className:'cta', onClick:()=>{back.remove(); scheduleSheet(dateStr);}},'＋ SCHEDULE WORKOUT'));
 }
 
 /* ── schedule sheet (create / edit) ────────────────────────────────── */
-function scheduleSheet(prefDate, prefTime, entry){
+function scheduleSheet(prefDate, prefTime, entry, prefWorkout){
   const isEdit = !!entry;
   const st = {
-    workoutId: entry ? entry.workoutId : Object.keys(WORKOUTS)[0],
+    workoutId: entry ? entry.workoutId : (prefWorkout || Object.keys(WORKOUTS)[0]),
     date: entry ? entry.date : (prefDate || today()),
     time: entry ? (entry.time||'') : (prefTime||''),
     freq: entry ? (entry.recur?entry.recur.freq:'none') : 'none',
@@ -887,7 +724,7 @@ function eventSheet(ev){
     h('h3',{style:{marginTop:'4px'}}, w ? w.name : 'Workout'),
     h('div',{className:'meta'}, (w ? `${w.mins} min · ${w.focus}` : '') + ' · ' + recurLabel(e)),
     w && h('div',{className:'card'},
-      w.ex.map(([name,sets,reps])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}`)))),
+      w.ex.map(([name,sets,reps,wt])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}${wt?` @ ${wt}kg`:''}`)))),
     ev.done
       ? h('div',{className:'meta', style:{marginTop:'10px', color:'var(--done)'}},'✓ Completed — nice work.')
       : h('button',{className:'cta', onClick:()=>{back.remove(); startSession(ev);}},'HIT THE IRON →'),
@@ -919,7 +756,7 @@ function startSession(ev){
     date: ev.date || today(),
     workoutId: w.id, name: w.name,
     startedAt: Date.now(), finished: false,
-    ex: w.ex.map(([name,sets,reps])=>({name, reps, sets:Array.from({length:sets},()=>({done:false, weight:'', reps:''}))})),
+    ex: w.ex.map(([name,sets,reps,wt])=>({name, reps, sets:Array.from({length:sets},()=>({done:false, weight: wt?String(wt):'', reps:''}))})),
   };
   render();
 }
@@ -1002,10 +839,11 @@ function buildPlans(body){
       h('h4',{}, c.name),
       h('div',{className:'pd'}, c.ex.map(e=>e[0]).join(' · ')),
       h('div',{className:'btnrow'},
-        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>scheduleSheet(today(),null,{id:uid(),workoutId:c.id,date:today(),time:null,recur:{freq:'none'},until:null,exceptions:[]})},'SCHEDULE'),
+        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>scheduleSheet(today(),null,null,c.id)},'SCHEDULE'),
+        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>customSheet(c)},'EDIT'),
         h('button',{className:'cta ghost danger', style:{flex:1, padding:'10px'}, onClick:()=>{ db.custom = db.custom.filter(x=>x.id!==c.id); render(); }},'DELETE'))));
   }
-  body.append(h('button',{className:'cta ghost', onClick:customSheet},'＋ CREATE CUSTOM WORKOUT'));
+  body.append(h('button',{className:'cta ghost', onClick:()=>customSheet()},'＋ CREATE CUSTOM WORKOUT'));
 }
 function planSheet(p){
   const dowName = n=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][n];
@@ -1029,26 +867,111 @@ function planSheet(p){
           recur:{freq:'weekly', interval:1, days:[dow]}, until:null, exceptions:[]});
       }
       db.schedule = list;
-      back.remove(); STATE.tab='calendar'; STATE.calView='week'; render();
+      back.remove(); STATE.tab='today'; STATE.miniDate=new Date(); render();
       toast(p.name+' added to your calendar 🔥');
     }},'SCHEDULE THIS PLAN'));
 }
-function customSheet(){
-  const nameInp = h('input',{className:'inp', placeholder:'e.g. Saturday Smash'});
-  const txt = h('textarea',{className:'inp', rows:'6', placeholder:'One exercise per line:\nBench Press x 4 x 8\nPull-Up x 3 x 10'});
+function isWeighted(exName){
+  const ex = EXERCISES.find(e=>e.name===exName);
+  return !!(ex && ex.equip.some(q=>['barbell','dumbbell','kettlebell','machine','cables'].includes(q)));
+}
+function isTimed(exName){
+  const ex = EXERCISES.find(e=>e.name===exName);
+  return !!(ex && ex.timed);
+}
+function exercisePicker(onPick){
+  let muscle='all', q='';
+  const search = h('input',{className:'inp', placeholder:'Search exercises…'});
+  const chips = h('div',{className:'chiprow'});
+  const list = h('div',{className:'pick-list'});
+  const refresh = ()=>{
+    list.innerHTML='';
+    const ql = q.trim().toLowerCase();
+    let shown = 0;
+    for(const ex of EXERCISES){
+      if(muscle!=='all' && ex.muscle!==muscle) continue;
+      if(ql && !ex.name.toLowerCase().includes(ql)) continue;
+      list.append(h('div',{className:'pick-item', onClick:()=>{back.remove(); onPick(ex);}},
+        h('div',{},
+          h('div',{className:'pn'}, ex.name),
+          h('div',{className:'pe'}, (ex.equip.length?ex.equip.join(' / '):'bodyweight') + (ex.timed?' · timed':''))),
+        h('span',{className:'pm'}, ex.muscle)));
+      shown++;
+    }
+    if(!shown) list.append(h('div',{className:'empty'},'No match. Try another filter.'));
+  };
+  MUSCLES.forEach(m=>{
+    const c = h('button',{className:'chip'+(m===muscle?' on':''), onClick:()=>{
+      muscle = m;
+      chips.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+      c.classList.add('on'); refresh();
+    }}, m[0].toUpperCase()+m.slice(1));
+    chips.append(c);
+  });
+  search.addEventListener('input',()=>{ q = search.value; refresh(); });
+  const back = sheet(h('h3',{},'Pick an exercise'), h('div',{className:'field'}, search), chips, list);
+  refresh();
+}
+function customSheet(existing){
+  const rows = existing ? existing.ex.map(e=>({
+    name:e[0], sets:e[1],
+    reps:String(e[2]).replace(/s$/,''),
+    timed:/s$/.test(String(e[2])) || isTimed(e[0]),
+    weight:e[3]||'',
+  })) : [];
+  const nameInp = h('input',{className:'inp', placeholder:'e.g. Saturday Smash', value: existing?existing.name:''});
+  const listEl = h('div',{});
+  const redraw = ()=>{
+    listEl.innerHTML='';
+    if(!rows.length) listEl.append(h('div',{className:'empty'},'No exercises yet.\nAdd some iron below.'));
+    rows.forEach((r,i)=>{
+      const setsInp = h('input',{type:'number', inputmode:'numeric', min:'1', max:'12', value:String(r.sets)});
+      setsInp.addEventListener('input',()=>r.sets=setsInp.value);
+      const repsInp = h('input',{type:'number', inputmode:'numeric', min:'1', value:String(r.reps)});
+      repsInp.addEventListener('input',()=>r.reps=repsInp.value);
+      const ctl = h('div',{className:'bx-ctl'},
+        h('div',{className:'bx-f'}, h('label',{},'Sets'), setsInp),
+        h('div',{className:'bx-f'}, h('label',{}, r.timed?'Seconds':'Reps'), repsInp));
+      if(isWeighted(r.name)){
+        const wInp = h('input',{type:'number', inputmode:'decimal', placeholder:'—', value:r.weight?String(r.weight):''});
+        wInp.addEventListener('input',()=>r.weight=wInp.value);
+        ctl.append(h('div',{className:'bx-f'}, h('label',{},'Kg'), wInp));
+      }
+      const meta = EXERCISES.find(e=>e.name===r.name);
+      listEl.append(h('div',{className:'bx'},
+        h('div',{className:'bx-head'},
+          h('div',{},
+            h('div',{className:'bx-name'}, r.name),
+            h('div',{className:'bx-mus'}, (meta?meta.muscle:'custom') + (r.timed?' · timed':''))),
+          h('button',{className:'bx-x', onClick:()=>{rows.splice(i,1); redraw();}},'✕')),
+        ctl));
+    });
+  };
+  redraw();
   const back = sheet(
-    h('h3',{},'Custom workout'),
+    h('h3',{}, existing ? 'Edit workout' : 'Custom workout'),
     h('div',{className:'field'}, h('label',{},'Name'), nameInp),
-    h('div',{className:'field'}, h('label',{},'Exercises (Name x sets x reps)'), txt),
+    h('div',{className:'field'}, h('label',{},'Exercises'), listEl),
+    h('button',{className:'cta ghost', onClick:()=>exercisePicker(ex=>{
+      rows.push({name:ex.name, sets:3, reps: ex.timed?30:10, timed:!!ex.timed, weight:''});
+      redraw();
+    })},'＋ ADD EXERCISE'),
     h('button',{className:'cta', onClick:()=>{
-      const name = nameInp.value.trim(); if(!name) return toast('Give it a name');
-      const ex = txt.value.split('\n').map(l=>l.trim()).filter(Boolean).map(l=>{
-        const parts = l.split(/\s*[x×]\s*/i);
-        return [parts[0]||'Exercise', parseInt(parts[1])||3, (parts[2]||'10').trim()];
+      const name = nameInp.value.trim();
+      if(!name) return toast('Give it a name');
+      if(!rows.length) return toast('Add at least one exercise');
+      const ex = rows.map(r=>{
+        const sets = Math.max(1, parseInt(r.sets)||3);
+        const reps = String(Math.max(1, parseInt(r.reps)||(r.timed?30:10))) + (r.timed?'s':'');
+        const t = [r.name, sets, reps];
+        const w = parseFloat(r.weight);
+        if(!isNaN(w) && w>0) t.push(w);
+        return t;
       });
-      if(!ex.length) return toast('Add at least one exercise');
-      const list = db.custom; list.push({id:'c_'+uid(), name, focus:'Custom workout', mins:40, ex}); db.custom = list;
-      back.remove(); render(); toast('Custom workout saved');
+      const list = db.custom.filter(c=>!existing || c.id!==existing.id);
+      list.push({id: existing?existing.id:'c_'+uid(), name, focus:'Custom workout', mins: existing&&existing.mins?existing.mins:40, ex});
+      db.custom = list;
+      back.remove(); render(); toast(existing?'Workout updated':'Custom workout saved');
     }},'SAVE WORKOUT'));
 }
 function buildExercises(body){

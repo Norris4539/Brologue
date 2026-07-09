@@ -3,11 +3,13 @@
 A single-file, dependency-free Progressive Web App for planning and tracking your training:
 
 - **Workout of the Day** the moment the app opens — with a 🔥 streak counter and daily motivation
-- **Calendar** (day / week / month) with full workout scheduling, including recurring options
-  (daily, every N days, weekly on chosen days, every 2 weeks, monthly, with optional end date)
+- **Tap-to-schedule calendar** right on the home screen: tap any date to see that day's
+  workouts or schedule a new one, with full recurring options (daily, every N days, weekly
+  on chosen days, every 2 weeks, monthly, with optional end date)
 - **Library** of preset plans (Push/Pull/Legs, Full Body, 5×5, Upper/Lower, Bodyweight, HIIT),
-  an exercise database that filters by *your* equipment (with bodyweight substitutes for what you can't do),
-  and custom workout creation
+  an exercise database that filters by *your* equipment (with bodyweight substitutes for what
+  you can't do), and a custom workout builder — pick exercises from the list, set sets,
+  reps or seconds, and an optional target weight
 - **Coach** — an AI chat powered by Claude for custom meal plans, dietary advice, and workout advice
 - **Installable PWA** — works offline, installs to your home screen on Android and iOS
 
