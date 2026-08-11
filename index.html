@@ -304,7 +304,9 @@ const QUOTES = [
   '“The last three reps make the muscle grow.”','“Rest builds champions too.”',
   '“Be the hardest worker in the room.”','“Milk is for babies. Lift the iron.”'
 ];
-const EQUIPMENT = ['barbell','dumbbell','kettlebell','machine','cables','bands','pull-up bar','bench'];
+const EQUIPMENT = ['barbell','ez bar','trap bar','dumbbell','kettlebell','plate','machine','smith machine',
+  'cables','bands','pull-up bar','dip bar','bench','box','landmine','medicine ball','stability ball',
+  'suspension trainer','ab wheel','jump rope','sled','cardio machine'];
 
 /* exercise DB: [name, muscle, [equipment...], bodyweight substitute] */
 const EXERCISES = [
@@ -339,7 +341,7 @@ const EXERCISES = [
   ['Overhead Press','shoulders',['barbell'],'Pike Push-Up'],
   ['Dumbbell Shoulder Press','shoulders',['dumbbell'],'Pike Push-Up'],
   ['Arnold Press','shoulders',['dumbbell'],'Pike Push-Up'],
-  ['Lateral Raise','shoulders',['dumbbell','cables','bands'],'Side Plank Raise'],
+  ['Lateral Raise','shoulders',['dumbbell','cables','bands'],'Reverse Snow Angel'],
   ['Front Raise','shoulders',['dumbbell','bands'],null],
   ['Rear Delt Fly','shoulders',['dumbbell','cables','bands'],'Reverse Snow Angel'],
   ['Face Pull','shoulders',['cables','bands'],'Reverse Snow Angel'],
@@ -379,7 +381,7 @@ const EXERCISES = [
   ['Jump Squat','cardio',[],null],
   ['Jumping Jack','cardio',[],null,1],
   ['High Knees','cardio',[],null,1],
-  ['Jump Rope','cardio',['bands'],'High Knees',1],
+  ['Jump Rope','cardio',['jump rope'],'High Knees',1],
   ['Plank','core',[],null,1],
   ['Side Plank','core',[],null,1],
   ['Hanging Leg Raise','core',['pull-up bar'],'Lying Leg Raise'],
@@ -387,7 +389,7 @@ const EXERCISES = [
   ['Russian Twist','core',['dumbbell','kettlebell'],null],
   ['Crunch','core',[],null],
   ['Bicycle Crunch','core',[],null],
-  ['Ab Wheel Rollout','core',['bands'],'Plank Walk-Out'],
+  ['Ab Wheel Rollout','core',['ab wheel'],'Plank Walk-Out'],
   ['Dead Bug','core',[],null],
   ['Hollow Body Hold','core',[],null,1],
   ['Pistol Squat Progression','legs',[],null],
@@ -406,6 +408,264 @@ const EXERCISES = [
   ['Doorframe Row','back',[],null],
   ['Backpack Curl','arms',[],null],
   ['Plank Walk-Out','core',[],null],
+  ['Low-Bar Back Squat','legs',['barbell'],'Air Squat'],
+  ['High-Bar Back Squat','legs',['barbell'],'Air Squat'],
+  ['Box Squat','legs',['barbell','box'],'Air Squat'],
+  ['Pause Squat','legs',['barbell'],'Wall Sit'],
+  ['Zercher Squat','legs',['barbell'],'Goblet Squat'],
+  ['Anderson Squat','legs',['barbell'],'Air Squat'],
+  ['Hack Squat','legs',['machine'],'Sissy Squat'],
+  ['Smith Machine Squat','legs',['smith machine'],'Air Squat'],
+  ['Landmine Squat','legs',['landmine'],'Goblet Squat'],
+  ['Split Squat','legs',[],null],
+  ['Jump Split Squat','legs',[],null],
+  ['Cossack Squat','legs',[],null],
+  ['Shrimp Squat','legs',[],null],
+  ['Pistol Squat','legs',[],null],
+  ['Lateral Lunge','legs',[],null],
+  ['Curtsy Lunge','legs',[],null],
+  ['Deficit Reverse Lunge','legs',['box'],'Reverse Lunge'],
+  ['Dumbbell Walking Lunge','legs',['dumbbell'],'Walking Lunge'],
+  ['Barbell Lunge','legs',['barbell'],'Walking Lunge'],
+  ['Trap Bar Deadlift','legs',['trap bar'],'Single-Leg Hip Hinge'],
+  ['Deficit Deadlift','legs',['barbell','plate'],'Single-Leg Hip Hinge'],
+  ['Stiff-Leg Deadlift','legs',['barbell','dumbbell'],'Single-Leg Hip Hinge'],
+  ['Single-Leg Romanian Deadlift','legs',['dumbbell','kettlebell'],'Single-Leg Hip Hinge'],
+  ['Kettlebell Deadlift','legs',['kettlebell'],'Single-Leg Hip Hinge'],
+  ['Belt Squat','legs',['machine'],'Air Squat'],
+  ['Lying Leg Curl','legs',['machine'],'Nordic Curl'],
+  ['Seated Leg Curl','legs',['machine'],'Nordic Curl'],
+  ['Sliding Leg Curl','legs',[],null],
+  ['Reverse Hyperextension','legs',['machine','bench'],'Glute Bridge'],
+  ['Barbell Hip Thrust','legs',['barbell','bench'],'Single-Leg Glute Bridge'],
+  ['B-Stance Hip Thrust','legs',['dumbbell','bench'],'Single-Leg Glute Bridge'],
+  ['Frog Pump','legs',[],null],
+  ['Cable Glute Kickback','legs',['cables','bands'],'Single-Leg Glute Bridge'],
+  ['Donkey Kick','legs',[],null],
+  ['Fire Hydrant','legs',[],null],
+  ['Banded Lateral Walk','legs',['bands'],'Air Squat'],
+  ['Clamshell','legs',[],null],
+  ['Standing Calf Raise','legs',['machine','dumbbell'],'Calf Raise'],
+  ['Seated Calf Raise','legs',['machine','dumbbell'],'Calf Raise'],
+  ['Single-Leg Calf Raise','legs',[],null],
+  ['Donkey Calf Raise','legs',['machine'],'Calf Raise'],
+  ['Tibialis Raise','legs',[],null],
+  ['Box Jump','legs',['box'],'Jump Squat'],
+  ['Broad Jump','legs',[],null],
+  ['Skater Hop','legs',[],null],
+  ['Depth Jump','legs',['box'],'Jump Squat'],
+  ['Goblet Squat Hold','legs',['dumbbell','kettlebell'],'Wall Sit',1],
+  ['Wall Sit March','legs',[],null,1],
+  ['Sled Push','legs',['sled'],'Broad Jump'],
+  ['Step-Up Jump','legs',['box'],'Jump Squat'],
+  ['Wide-Grip Pull-Up','back',['pull-up bar'],'Doorframe Row'],
+  ['Neutral-Grip Pull-Up','back',['pull-up bar'],'Doorframe Row'],
+  ['Weighted Pull-Up','back',['pull-up bar','plate'],'Doorframe Row'],
+  ['Assisted Pull-Up','back',['machine','bands'],'Doorframe Row'],
+  ['Commando Pull-Up','back',['pull-up bar'],'Doorframe Row'],
+  ['Australian Pull-Up','back',['suspension trainer','bands'],'Inverted Row'],
+  ['Close-Grip Lat Pulldown','back',['cables','machine'],'Doorframe Row'],
+  ['Neutral-Grip Lat Pulldown','back',['cables','machine'],'Doorframe Row'],
+  ['Straight-Arm Pulldown','back',['cables','bands'],'Superman Hold'],
+  ['Pendlay Row','back',['barbell'],'Inverted Row'],
+  ['Yates Row','back',['barbell'],'Inverted Row'],
+  ['Chest-Supported Row','back',['dumbbell','bench','machine'],'Inverted Row'],
+  ['Seal Row','back',['barbell','bench'],'Inverted Row'],
+  ['Meadows Row','back',['landmine'],'Inverted Row'],
+  ['Landmine Row','back',['landmine'],'Inverted Row'],
+  ['Single-Arm Dumbbell Row','back',['dumbbell'],'Doorframe Row'],
+  ['TRX Row','back',['suspension trainer'],'Inverted Row'],
+  ['Machine Row','back',['machine'],'Inverted Row'],
+  ['Kroc Row','back',['dumbbell'],'Doorframe Row'],
+  ['Rack Pull','back',['barbell'],'Hip Hinge Hold'],
+  ['Snatch-Grip Deadlift','back',['barbell'],'Hip Hinge Hold'],
+  ['Barbell Shrug','back',['barbell'],'Superman Hold'],
+  ['Dumbbell Shrug','back',['dumbbell'],'Superman Hold'],
+  ['Trap Bar Shrug','back',['trap bar'],'Superman Hold'],
+  ['Hyperextension','back',['bench','machine'],'Superman Hold'],
+  ['Prone Y Raise','back',[],null],
+  ['Prone T Raise','back',[],null],
+  ['Prone W Raise','back',[],null],
+  ['Scapular Pull-Up','back',['pull-up bar'],'Doorframe Row'],
+  ['Dead Hang','back',['pull-up bar'],'Plank',1],
+  ['Bird Dog Row','back',['dumbbell'],'Doorframe Row'],
+  ['Banded Face Pull','back',['bands'],'Reverse Snow Angel'],
+  ['Reverse Fly Machine','back',['machine'],'Reverse Snow Angel'],
+  ['Sled Row','back',['sled'],'Inverted Row'],
+  ['Good Morning (Dumbbell)','back',['dumbbell'],'Hip Hinge Hold'],
+  ['Jefferson Curl','back',['dumbbell','kettlebell'],'Hip Hinge Hold'],
+  ['Bent-Over Reverse Fly','back',['dumbbell'],'Reverse Snow Angel'],
+  ['Pause Bench Press','chest',['barbell','bench'],'Push-Up'],
+  ['Wide-Grip Bench Press','chest',['barbell','bench'],'Wide Push-Up'],
+  ['Board Press','chest',['barbell','bench'],'Push-Up'],
+  ['Floor Press','chest',['barbell','dumbbell'],'Push-Up'],
+  ['Smith Machine Bench Press','chest',['smith machine','bench'],'Push-Up'],
+  ['Decline DB Press','chest',['dumbbell','bench'],'Decline Push-Up'],
+  ['Neutral-Grip DB Press','chest',['dumbbell','bench'],'Push-Up'],
+  ['Squeeze Press','chest',['dumbbell','bench'],'Diamond Push-Up'],
+  ['Svend Press','chest',['plate'],'Diamond Push-Up'],
+  ['Incline Cable Fly','chest',['cables'],'Incline Push-Up'],
+  ['Low-to-High Cable Fly','chest',['cables','bands'],'Wide Push-Up'],
+  ['High-to-Low Cable Fly','chest',['cables','bands'],'Decline Push-Up'],
+  ['Pec Deck','chest',['machine'],'Wide Push-Up'],
+  ['Incline Dumbbell Fly','chest',['dumbbell','bench'],'Wide Push-Up'],
+  ['Bar Dip','chest',['dip bar'],'Decline Push-Up'],
+  ['Ring Dip','chest',['suspension trainer'],'Decline Push-Up'],
+  ['Weighted Dip','chest',['dip bar','plate'],'Decline Push-Up'],
+  ['Pseudo Planche Push-Up','chest',[],null],
+  ['Clap Push-Up','chest',[],null],
+  ['Deficit Push-Up','chest',['dumbbell','box'],'Push-Up'],
+  ['Spiderman Push-Up','chest',[],null],
+  ['Ring Push-Up','chest',['suspension trainer'],'Push-Up'],
+  ['Stability Ball Push-Up','chest',['stability ball'],'Push-Up'],
+  ['Medicine Ball Push-Up','chest',['medicine ball'],'Diamond Push-Up'],
+  ['Machine Chest Fly','chest',['machine'],'Wide Push-Up'],
+  ['Hammer Strength Press','chest',['machine'],'Push-Up'],
+  ['Landmine Press','chest',['landmine'],'Push-Up'],
+  ['Push-Up Plus','chest',[],null],
+  ['Isometric Push-Up Hold','chest',[],null,1],
+  ['Seated Overhead Press','shoulders',['barbell','bench'],'Pike Push-Up'],
+  ['Push Press','shoulders',['barbell','dumbbell'],'Pike Push-Up'],
+  ['Behind-the-Neck Press','shoulders',['barbell'],'Pike Push-Up'],
+  ['Smith Machine Shoulder Press','shoulders',['smith machine'],'Pike Push-Up'],
+  ['Machine Shoulder Press','shoulders',['machine'],'Pike Push-Up'],
+  ['Landmine Press (Shoulders)','shoulders',['landmine'],'Pike Push-Up'],
+  ['Z-Press','shoulders',['barbell','dumbbell'],'Pike Push-Up'],
+  ['Single-Arm Overhead Press','shoulders',['dumbbell','kettlebell'],'Pike Push-Up'],
+  ['Bottoms-Up Press','shoulders',['kettlebell'],'Pike Push-Up'],
+  ['Cable Lateral Raise','shoulders',['cables','bands'],'Reverse Snow Angel'],
+  ['Leaning Lateral Raise','shoulders',['dumbbell'],'Reverse Snow Angel'],
+  ['Incline Lateral Raise','shoulders',['dumbbell','bench'],'Reverse Snow Angel'],
+  ['Machine Lateral Raise','shoulders',['machine'],'Reverse Snow Angel'],
+  ['Plate Front Raise','shoulders',['plate'],'Pike Push-Up'],
+  ['Cable Front Raise','shoulders',['cables','bands'],'Pike Push-Up'],
+  ['Band Pull-Apart','shoulders',['bands'],'Reverse Snow Angel'],
+  ['Reverse Pec Deck','shoulders',['machine'],'Reverse Snow Angel'],
+  ['Cable Rear Delt Fly','shoulders',['cables','bands'],'Reverse Snow Angel'],
+  ['Barbell High Pull','shoulders',['barbell'],'Pike Push-Up'],
+  ['Cable Upright Row','shoulders',['cables','bands'],'Pike Push-Up'],
+  ['Handstand Hold','shoulders',[],null,1],
+  ['Wall Walk','shoulders',[],null],
+  ['Wall-Supported Handstand Push-Up','shoulders',[],null],
+  ['Elevated Pike Push-Up','shoulders',['box','bench'],'Pike Push-Up'],
+  ['Arnold Press (Seated)','shoulders',['dumbbell','bench'],'Pike Push-Up'],
+  ['Halo','shoulders',['kettlebell','plate'],'Reverse Snow Angel'],
+  ['Overhead Plate Hold','shoulders',['plate'],'Handstand Hold',1],
+  ['Cuban Press','shoulders',['dumbbell'],'Reverse Snow Angel'],
+  ['EZ Bar Curl','arms',['ez bar'],'Backpack Curl'],
+  ['Incline Dumbbell Curl','arms',['dumbbell','bench'],'Backpack Curl'],
+  ['Concentration Curl','arms',['dumbbell'],'Backpack Curl'],
+  ['Spider Curl','arms',['dumbbell','bench'],'Backpack Curl'],
+  ['Bayesian Cable Curl','arms',['cables'],'Backpack Curl'],
+  ['Drag Curl','arms',['barbell','ez bar'],'Backpack Curl'],
+  ['21s Curl','arms',['barbell','ez bar'],'Backpack Curl'],
+  ['Reverse Curl','arms',['barbell','ez bar','dumbbell'],'Backpack Curl'],
+  ['Zottman Curl','arms',['dumbbell'],'Backpack Curl'],
+  ['Machine Preacher Curl','arms',['machine'],'Backpack Curl'],
+  ['Chin-Up Curl Hold','arms',['pull-up bar'],'Backpack Curl',1],
+  ['Rope Triceps Pushdown','arms',['cables'],'Diamond Push-Up'],
+  ['Straight-Bar Pushdown','arms',['cables'],'Diamond Push-Up'],
+  ['Overhead Rope Extension','arms',['cables'],'Diamond Push-Up'],
+  ['EZ Bar Skull Crusher','arms',['ez bar','bench'],'Diamond Push-Up'],
+  ['JM Press','arms',['barbell','bench'],'Diamond Push-Up'],
+  ['Dumbbell Kickback','arms',['dumbbell'],'Diamond Push-Up'],
+  ['Tate Press','arms',['dumbbell','bench'],'Diamond Push-Up'],
+  ['Machine Triceps Extension','arms',['machine'],'Diamond Push-Up'],
+  ['Band Pushdown','arms',['bands'],'Diamond Push-Up'],
+  ['Ring Triceps Extension','arms',['suspension trainer'],'Diamond Push-Up'],
+  ['Wrist Curl','arms',['dumbbell','barbell'],'Plate Pinch Hold'],
+  ['Reverse Wrist Curl','arms',['dumbbell','barbell'],'Plate Pinch Hold'],
+  ['Wrist Roller','arms',['plate'],'Plate Pinch Hold'],
+  ['Plate Pinch Hold','arms',['plate'],null,1],
+  ['Dead Hang Grip Hold','arms',['pull-up bar'],'Plate Pinch Hold',1],
+  ['Towel Curl','arms',[],null],
+  ['Isometric Curl Hold','arms',['dumbbell'],'Backpack Curl',1],
+  ['RKC Plank','core',[],null,1],
+  ['Long-Lever Plank','core',[],null,1],
+  ['Plank Shoulder Tap','core',[],null],
+  ['Plank Up-Down','core',[],null],
+  ['Stability Ball Plank','core',['stability ball'],'Plank',1],
+  ['Weighted Plank','core',['plate'],'Plank',1],
+  ['Bird Dog','core',[],null],
+  ['Hanging Knee Raise','core',['pull-up bar'],'Lying Leg Raise'],
+  ['Toes-to-Bar','core',['pull-up bar'],'Lying Leg Raise'],
+  ['Captain’s Chair Leg Raise','core',['machine'],'Lying Leg Raise'],
+  ['L-Sit','core',['dip bar'],'Hollow Body Hold',1],
+  ['Dragon Flag','core',['bench'],'Hollow Body Hold'],
+  ['Reverse Crunch','core',[],null],
+  ['Decline Crunch','core',['bench'],'Crunch'],
+  ['Cable Crunch','core',['cables'],'Crunch'],
+  ['V-Up','core',[],null],
+  ['Jackknife','core',[],null],
+  ['Stability Ball Jackknife','core',['stability ball'],'Jackknife'],
+  ['Stability Ball Rollout','core',['stability ball'],'Plank Walk-Out'],
+  ['Pallof Press','core',['cables','bands'],'Plank'],
+  ['Cable Woodchopper','core',['cables','bands'],'Russian Twist'],
+  ['Landmine Twist','core',['landmine'],'Russian Twist'],
+  ['Medicine Ball Russian Twist','core',['medicine ball'],'Russian Twist'],
+  ['Side Bend','core',['dumbbell','kettlebell'],'Side Plank'],
+  ['Suitcase Hold','core',['dumbbell','kettlebell'],'Side Plank',1],
+  ['Hollow Rock','core',[],null],
+  ['Flutter Kick','core',[],null],
+  ['Scissor Kick','core',[],null],
+  ['Heel Tap','core',[],null],
+  ['Sit-Up','core',[],null],
+  ['Weighted Sit-Up','core',['plate','medicine ball'],'Sit-Up'],
+  ['Medicine Ball Slam (Core)','core',['medicine ball'],'Burpee'],
+  ['Copenhagen Plank','core',['bench','box'],'Side Plank',1],
+  ['Burpee Box Jump','cardio',['box'],'Burpee'],
+  ['Half Burpee','cardio',[],null],
+  ['Burpee Broad Jump','cardio',[],null],
+  ['Butt Kick','cardio',[],null,1],
+  ['Tuck Jump','cardio',[],null],
+  ['Star Jump','cardio',[],null],
+  ['Squat Jack','cardio',[],null,1],
+  ['Speed Skater','cardio',[],null,1],
+  ['Shuttle Run','cardio',[],null],
+  ['Bear Crawl','cardio',[],null,1],
+  ['Crab Walk','cardio',[],null,1],
+  ['Sprint Interval','cardio',[],null,1],
+  ['Hill Sprint','cardio',[],null],
+  ['Rowing Interval','cardio',['cardio machine'],'Sprint Interval',1],
+  ['Assault Bike Interval','cardio',['cardio machine'],'Sprint Interval',1],
+  ['Treadmill Interval','cardio',['cardio machine'],'Sprint Interval',1],
+  ['Elliptical Interval','cardio',['cardio machine'],'Sprint Interval',1],
+  ['Stair Climber','cardio',['cardio machine'],'High Knees',1],
+  ['Battle Rope Wave','cardio',['bands'],'Mountain Climber',1],
+  ['Double-Under','cardio',['jump rope'],'High Knees',1],
+  ['Single-Under','cardio',['jump rope'],'High Knees',1],
+  ['Box Step-Over','cardio',['box'],'Step-Up'],
+  ['Sled Drag','cardio',['sled'],'Bear Crawl'],
+  ['Medicine Ball Slam','cardio',['medicine ball'],'Burpee'],
+  ['Sandbag Carry Run','cardio',['sled','medicine ball'],'Bear Crawl',1],
+  ['Inchworm','cardio',[],null],
+  ['Lateral Shuffle','cardio',[],null,1],
+  ['Jumping Lunge','cardio',[],null],
+  ['Power Clean','full',['barbell'],'Jump Squat'],
+  ['Hang Clean','full',['barbell'],'Jump Squat'],
+  ['Squat Clean','full',['barbell'],'Jump Squat'],
+  ['Snatch','full',['barbell'],'Jump Squat'],
+  ['Power Snatch','full',['barbell'],'Jump Squat'],
+  ['Hang Snatch','full',['barbell'],'Jump Squat'],
+  ['Clean & Jerk','full',['barbell'],'Jump Squat'],
+  ['Push Jerk','full',['barbell','dumbbell'],'Jump Squat'],
+  ['Split Jerk','full',['barbell'],'Jump Squat'],
+  ['Barbell Complex','full',['barbell'],'Burpee'],
+  ['One-Arm Kettlebell Swing','full',['kettlebell'],'Jump Squat'],
+  ['Kettlebell Snatch','full',['kettlebell'],'Jump Squat'],
+  ['Kettlebell Clean','full',['kettlebell'],'Jump Squat'],
+  ['Kettlebell Goblet Complex','full',['kettlebell','dumbbell'],'Burpee'],
+  ['Dumbbell Thruster','full',['dumbbell'],'Jump Squat'],
+  ['Man Maker','full',['dumbbell'],'Burpee'],
+  ['Devil Press','full',['dumbbell'],'Burpee'],
+  ['Burpee Pull-Up','full',['pull-up bar'],'Burpee'],
+  ['Wall Ball','full',['medicine ball'],'Jump Squat'],
+  ['Sledgehammer Swing','full',['sled'],'Burpee'],
+  ['Bear Complex','full',['barbell'],'Burpee'],
+  ['Suitcase Carry','full',['dumbbell','kettlebell'],'Bear Crawl',1],
+  ['Overhead Carry','full',['dumbbell','kettlebell','plate'],'Bear Crawl',1],
+  ['Front-Rack Carry','full',['kettlebell','dumbbell'],'Bear Crawl',1],
+  ['Sandbag Clean','full',['medicine ball','sled'],'Jump Squat'],
 ].map(([name,muscle,equip,sub,timed])=>({name,muscle,equip,sub,timed:!!timed}));
 
 const MUSCLES = ['all','chest','back','legs','shoulders','arms','core','cardio','full'];
@@ -868,7 +1128,7 @@ function SessionScreen(){
 }
 
 /* ── Library ───────────────────────────────────────────────────────── */
-const LIB = { view:'plans', muscle:'all', onlyMine:true };
+const LIB = { view:'plans', muscle:'all', onlyMine:true, q:'' };
 function LibraryScreen(){
   const wrap = h('div',{className:'screen anim-fade'});
   wrap.append(h('div',{className:'app-bar'},
@@ -933,7 +1193,8 @@ function planSheet(p){
 }
 function isWeighted(exName){
   const ex = EXERCISES.find(e=>e.name===exName);
-  return !!(ex && ex.equip.some(q=>['barbell','dumbbell','kettlebell','machine','cables'].includes(q)));
+  return !!(ex && ex.equip.some(q=>['barbell','ez bar','trap bar','dumbbell','kettlebell','plate',
+    'machine','smith machine','cables','landmine','medicine ball','sled'].includes(q)));
 }
 function isTimed(exName){
   const ex = EXERCISES.find(e=>e.name===exName);
@@ -1035,6 +1296,14 @@ function customSheet(existing){
     }},'SAVE WORKOUT'));
 }
 function buildExercises(body){
+  const search = h('input',{className:'inp', placeholder:'Search exercises or equipment…', value:LIB.q});
+  let t = null;
+  search.addEventListener('input', ()=>{
+    LIB.q = search.value;
+    clearTimeout(t);
+    t = setTimeout(()=>{ LIB.focusSearch = true; render(); }, 180);
+  });
+  body.append(h('div',{className:'field', style:{marginTop:'4px'}}, search));
   const mchips = h('div',{className:'chiprow', style:{marginTop:'4px'}});
   MUSCLES.forEach(m=>mchips.append(h('button',{className:'chip'+(LIB.muscle===m?' on':''),
     onClick:()=>{LIB.muscle=m; render();}}, m[0].toUpperCase()+m.slice(1))));
@@ -1042,10 +1311,17 @@ function buildExercises(body){
   const mineChip = h('button',{className:'chip'+(LIB.onlyMine?' on':''), onClick:()=>{LIB.onlyMine=!LIB.onlyMine; render();}},
     LIB.onlyMine?'✓ My equipment only':'Show all equipment');
   body.append(h('div',{className:'chiprow'}, mineChip,
-    h('button',{className:'chip', onClick:settingsSheet},'⚙︎ My equipment: '+(db.equipment.length? db.equipment.join(', ') : 'bodyweight only'))));
+    h('button',{className:'chip', onClick:settingsSheet},'⚙︎ My equipment: '+(
+      !db.equipment.length ? 'bodyweight only'
+        : db.equipment.length<=3 ? db.equipment.join(', ')
+        : db.equipment.length+' types'))));
   const have = new Set(db.equipment);
   const canDo = ex => ex.equip.length===0 || ex.equip.some(q=>have.has(q));
+  const ql = LIB.q.trim().toLowerCase();
   let list = EXERCISES.filter(ex=>LIB.muscle==='all'||ex.muscle===LIB.muscle);
+  if(ql) list = list.filter(ex=>ex.name.toLowerCase().includes(ql)
+    || ex.equip.some(q=>q.includes(ql))
+    || (!ex.equip.length && 'bodyweight'.includes(ql)));
   const card = h('div',{className:'card'});
   let shown = 0;
   for(const ex of list){
@@ -1060,6 +1336,12 @@ function buildExercises(body){
     shown++;
   }
   if(!shown) card.append(h('div',{className:'empty'},'Nothing here for this filter.'));
+  body.append(h('div',{className:'meta', style:{margin:'10px 0 0'}},
+    shown+' of '+EXERCISES.length+' moves'));
+  if(LIB.focusSearch){
+    LIB.focusSearch = false;
+    setTimeout(()=>{ search.focus(); const n=search.value.length; search.setSelectionRange(n,n); },0);
+  }
   body.append(card);
 }
 function buildAsk(body){
