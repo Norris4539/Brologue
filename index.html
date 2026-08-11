@@ -195,6 +195,9 @@
   .plan-card .tags{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap}
   .tag{font-size:9px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:var(--red);
     border:1px solid var(--red);padding:2px 8px;font-family:var(--small)}
+  .ex-head{font-family:var(--wood);font-size:15px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--red);border-bottom:1.5px solid var(--ink);padding:12px 0 4px;margin-top:8px}
+  .ex-head:first-child{margin-top:0;padding-top:2px}
   .ex-item{display:flex;justify-content:space-between;align-items:center;padding:10px 2px;border-bottom:1px dotted var(--tan)}
   .ex-item:last-child{border-bottom:0}
   .ex-item .en{font-size:13.5px;font-weight:700}
@@ -336,7 +339,7 @@ const EXERCISES = [
   ['Diamond Push-Up','chest',[],null],
   ['Cable Fly','chest',['cables'],'Wide Push-Up'],
   ['Dumbbell Fly','chest',['dumbbell','bench'],'Wide Push-Up'],
-  ['Chest Dip','chest',['pull-up bar'],'Decline Push-Up'],
+  ['Chest Dip','chest',['dip bar'],'Decline Push-Up'],
   ['Machine Chest Press','chest',['machine'],'Push-Up'],
   ['Overhead Press','shoulders',['barbell'],'Pike Push-Up'],
   ['Dumbbell Shoulder Press','shoulders',['dumbbell'],'Pike Push-Up'],
@@ -669,6 +672,12 @@ const EXERCISES = [
 ].map(([name,muscle,equip,sub,timed])=>({name,muscle,equip,sub,timed:!!timed}));
 
 const MUSCLES = ['all','chest','back','legs','shoulders','arms','core','cardio','full'];
+
+/* library order: body part (same order as the filter chips), then A–Z within it */
+const MUSCLE_ORDER = MUSCLES.filter(m=>m!=='all');
+EXERCISES.sort((a,b)=>
+  MUSCLE_ORDER.indexOf(a.muscle) - MUSCLE_ORDER.indexOf(b.muscle)
+  || a.name.localeCompare(b.name));
 
 /* workout templates: id -> {name, focus, mins, ex: [[name, sets, reps], ...]} */
 const WORKOUTS = {
@@ -1323,10 +1332,15 @@ function buildExercises(body){
     || ex.equip.some(q=>q.includes(ql))
     || (!ex.equip.length && 'bodyweight'.includes(ql)));
   const card = h('div',{className:'card'});
-  let shown = 0;
+  let shown = 0, lastMuscle = null;
+  const heads = LIB.muscle === 'all';   // one chip active = one group, heading is noise
   for(const ex of list){
     const ok = canDo(ex);
     if(LIB.onlyMine && !ok) continue;
+    if(heads && ex.muscle !== lastMuscle){
+      card.append(h('div',{className:'ex-head'}, ex.muscle));
+      lastMuscle = ex.muscle;
+    }
     card.append(h('div',{className:'ex-item'+(ok?'':' blocked')},
       h('div',{},
         h('div',{className:'en'},ex.name),
