@@ -907,7 +907,7 @@ function TodayScreen(){
     if(rest.length){
       body.append(h('div',{className:'sl'},'Also today'));
       for(const e of rest) body.append(h('div',{className:'card', style:{marginTop:'8px', cursor:'pointer'}, onClick:()=>eventSheet(e)},
-        h('div',{className:'exrow'}, h('span',{}, (e.done?'✓ ':'') + (e.workout ? e.workout.name : '?')), h('span',{className:'set'}, e.time ? fmtTime(e.time) : 'Any time'))));
+        h('div',{className:'exrow'}, h('span',{}, (e.done?'✓ ':'') + (e.workout ? e.workout.name : '?')), h('span',{className:'set'}, e.time ? fmtTime(e.time) : ''))));
     }
   } else {
     body.append(
@@ -964,31 +964,28 @@ function daySheet(dateStr){
             h('div',{},
               h('div',{className:'dn'}, (ev.done?'✓ ':'')+(ev.workout?ev.workout.name:'?')),
               h('div',{className:'dm'}, recurLabel(ev.entry))),
-            h('span',{className:'dt'}, ev.time?fmtTime(ev.time):'ANY TIME'))))
+            h('span',{className:'dt'}, ev.time?fmtTime(ev.time):''))))
       : h('div',{className:'empty'},'A rest day — or an opportunity.'),
     h('button',{className:'cta', onClick:()=>{back.remove(); scheduleSheet(dateStr);}},'＋ SCHEDULE WORKOUT'));
 }
 
 /* ── schedule sheet (create / edit) ────────────────────────────────── */
-function scheduleSheet(prefDate, prefTime, entry, prefWorkout){
+function scheduleSheet(prefDate, entry, prefWorkout){
   const isEdit = !!entry;
   const st = {
     workoutId: entry ? entry.workoutId : (prefWorkout || Object.keys(WORKOUTS)[0]),
     date: entry ? entry.date : (prefDate || today()),
-    time: entry ? (entry.time||'') : (prefTime||''),
     freq: entry ? (entry.recur?entry.recur.freq:'none') : 'none',
     interval: entry && entry.recur ? (entry.recur.interval||1) : 1,
     days: entry && entry.recur && entry.recur.days ? [...entry.recur.days] : [],
-    until: entry ? (entry.until||'') : '',
   };
   const wSel = styledSelect(allWorkoutOptions(), st.workoutId);
   const dateInp = h('input',{className:'inp', type:'date', value:st.date});
-  const timeInp = h('input',{className:'inp', type:'time', value:st.time});
   const curFreq = st.freq==='daily'&&st.interval>1 ? 'daily2' : (st.freq==='weekly'&&st.interval===2 ? 'weekly2' : st.freq);
   const freqSel = styledSelect(
     [['none','Does not repeat'],['daily','Daily'],['daily2','Every N days'],['weekly','Weekly on chosen days'],['weekly2','Every 2 weeks'],['monthly','Monthly']],
     curFreq, ()=>syncVis());
-  const intInp = h('input',{className:'inp', type:'number', min:'2', max:'30', value:String(Math.max(2,st.interval))});
+  const intInp = h('input',{className:'inp', type:'number', min:'2', max:'60', value:String(Math.max(2,st.interval))});
   const intWrap = h('div',{className:'field', style:{display:'none'}}, h('label',{},'Repeat every N days'), intInp);
   const dayChips = h('div',{className:'chiprow'});
   const jsDows = [[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']];
@@ -1002,7 +999,6 @@ function scheduleSheet(prefDate, prefTime, entry, prefWorkout){
     }}, l);
     dayChips.append(c);
   });
-  const untilInp = h('input',{className:'inp', type:'date', value:st.until});
   const syncVis = ()=>{
     const v = freqSel.value;
     intWrap.style.display = v==='daily2' ? '' : 'none';
@@ -1014,7 +1010,7 @@ function scheduleSheet(prefDate, prefTime, entry, prefWorkout){
     const v = freqSel.value;
     let recur = {freq:'none'};
     if(v==='daily')   recur = {freq:'daily', interval:1};
-    if(v==='daily2')  recur = {freq:'daily', interval:Math.max(2, parseInt(intInp.value)||2)};
+    if(v==='daily2')  recur = {freq:'daily', interval:Math.min(60, Math.max(2, parseInt(intInp.value)||2))};
     if(v==='weekly' || v==='weekly2'){
       const days = st.days.length ? st.days : [fromDs(dateInp.value||today()).getDay()];
       recur = {freq:'weekly', interval:v==='weekly2'?2:1, days};
@@ -1024,8 +1020,8 @@ function scheduleSheet(prefDate, prefTime, entry, prefWorkout){
       id: entry ? entry.id : uid(),
       workoutId: wSel.value,
       date: dateInp.value || today(),
-      time: timeInp.value || null,
-      recur, until: untilInp.value || null,
+      time: null,
+      recur, until: null,
       exceptions: entry ? (entry.exceptions||[]) : [],
     };
     const list = db.schedule.filter(e=>e.id!==rec.id);
@@ -1037,10 +1033,8 @@ function scheduleSheet(prefDate, prefTime, entry, prefWorkout){
     h('h3',{}, isEdit ? 'Edit workout' : 'Schedule workout'),
     h('div',{className:'field'}, h('label',{},'Workout'), wSel),
     h('div',{className:'field'}, h('label',{}, isEdit&&st.freq!=='none' ? 'Series start date' : 'Date'), dateInp),
-    h('div',{className:'field'}, h('label',{},'Time (optional)'), timeInp),
     h('div',{className:'field'}, h('label',{},'Repeats'), freqSel),
     intWrap, dayWrap,
-    h('div',{className:'field'}, h('label',{},'Ends (optional)'), untilInp),
     h('button',{className:'cta', onClick:save}, isEdit ? 'SAVE CHANGES' : 'ADD TO CALENDAR'));
 }
 
@@ -1058,7 +1052,7 @@ function eventSheet(ev){
       ? h('div',{className:'meta', style:{marginTop:'10px', color:'var(--done)'}},'✓ Completed — nice work.')
       : h('button',{className:'cta', onClick:()=>{back.remove(); startSession(ev);}},'HIT THE IRON →'),
     h('div',{className:'btnrow'},
-      h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{back.remove(); scheduleSheet(null,null,e);}},'EDIT'+(isRecur?' SERIES':'')),
+      h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{back.remove(); scheduleSheet(null,e);}},'EDIT'+(isRecur?' SERIES':'')),
       h('button',{className:'cta ghost danger', style:{flex:1}, onClick:()=>{
         if(isRecur){
           e.exceptions = e.exceptions||[]; e.exceptions.push(ev.date);
@@ -1168,7 +1162,7 @@ function buildPlans(body){
       h('h4',{}, c.name),
       h('div',{className:'pd'}, c.ex.map(e=>e[0]).join(' · ')),
       h('div',{className:'btnrow'},
-        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>scheduleSheet(today(),null,null,c.id)},'SCHEDULE'),
+        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>scheduleSheet(today(),null,c.id)},'SCHEDULE'),
         h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>customSheet(c)},'EDIT'),
         h('button',{className:'cta ghost danger', style:{flex:1, padding:'10px'}, onClick:()=>{ db.custom = db.custom.filter(x=>x.id!==c.id); render(); }},'DELETE'))));
   }
