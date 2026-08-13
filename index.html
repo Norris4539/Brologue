@@ -141,11 +141,39 @@
   .inp:focus{border-color:var(--red);box-shadow:2px 2px 0 var(--ink)}
   input[type=date].inp,input[type=time].inp{color-scheme:light}
 
+  /* number field with steppers (replaces bare numeric inputs) */
+  .stp{display:inline-flex;align-items:stretch;border:1.5px solid var(--ink);background:var(--paper)}
+  .stp input{width:46px;border:0;background:none;color:var(--ink);font-size:13.5px;padding:6px 2px;
+    text-align:center;outline:none;border-radius:0;font-family:var(--serif);-moz-appearance:textfield}
+  .stp input::-webkit-outer-spin-button,.stp input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+  .stp.wide input{width:64px}
+  .stp-b{width:30px;flex:none;background:var(--paper2);color:var(--ink);font-size:15px;line-height:1;
+    border:0;border-right:1.5px solid var(--ink);font-family:var(--serif)}
+  .stp-b:last-child{border-right:0;border-left:1.5px solid var(--ink)}
+  .stp-b:active{background:var(--ink);color:var(--paper)}
+
+  /* date picker sheet (reuses the mini-calendar grid) */
+  .mini-d.sel{background:var(--red);color:var(--paper);font-weight:700}
+  .dp-head{display:flex;align-items:center;justify-content:space-between;margin:12px 0 2px}
+  .dp-head b{font-family:var(--wood);font-size:19px;letter-spacing:1px;text-transform:uppercase;font-weight:400}
+
+  /* rest timer bar */
+  .rest-bar{position:fixed;left:0;right:0;bottom:0;z-index:45;display:flex;align-items:center;gap:12px;
+    background:var(--ink);color:var(--paper);padding:10px 14px calc(10px + var(--sab));
+    animation:slideup .2s ease;overflow:hidden}
+  .rest-bar .rest-lbl{font-family:var(--small);font-size:8px;letter-spacing:2px;font-weight:700;
+    text-transform:uppercase;color:var(--pale)}
+  .rest-bar .rest-t{font-family:var(--wood);font-size:27px;letter-spacing:1.5px;line-height:1;margin-top:2px}
+  .rest-bar button{border:1.5px solid var(--pale);color:var(--paper);background:none;font-family:var(--small);
+    font-size:9px;letter-spacing:1.5px;font-weight:700;text-transform:uppercase;padding:8px 10px}
+  .rest-bar button:active{background:var(--paper);color:var(--ink)}
+  .rest-prog{position:absolute;left:0;bottom:0;height:3px;background:var(--red);transition:width 1s linear}
+
   /* themed dropdown (replaces native <select>) */
   .ssel{position:relative}
-  .ssel-btn{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--paper2);
+  .ssel-btn,.date-btn{display:flex;justify-content:space-between;align-items:center;width:100%;background:var(--paper2);
     border:1.5px solid var(--ink);color:var(--ink);font-size:14px;padding:11px 12px;text-align:left;gap:8px}
-  .ssel-btn:active{box-shadow:2px 2px 0 var(--ink)}
+  .ssel-btn:active,.date-btn:active{box-shadow:2px 2px 0 var(--ink)}
   .ssel-arr{color:var(--red);font-size:12px;flex:none}
   .ssel-list{display:none;position:absolute;left:0;right:0;top:calc(100% + 4px);background:var(--paper2);
     border:1.5px solid var(--ink);box-shadow:3px 3px 0 rgba(43,32,22,.4);max-height:38dvh;overflow-y:auto;z-index:60}
@@ -294,6 +322,126 @@ function styledSelect(options, value, onChange){
     set: v=>{ cur = v; btnTxt.textContent = label(v); },
   });
   return root;
+}
+
+/* number field with -/+ steppers; returns the wrapper, .input is the field */
+function numField(o){
+  o = o || {};
+  const inp = h('input', Object.assign({type:'number', inputmode:'numeric'}, o.attrs||{}));
+  if(o.min !== undefined) inp.setAttribute('min', String(o.min));
+  if(o.max !== undefined) inp.setAttribute('max', String(o.max));
+  inp.setAttribute('step', String(o.step || 1));
+  const st = o.step || 1;
+  const clamp = v => {
+    if(isNaN(v)) v = (o.min !== undefined ? o.min : 0);
+    if(o.min !== undefined) v = Math.max(o.min, v);
+    if(o.max !== undefined) v = Math.min(o.max, v);
+    return Math.round(v * 100) / 100;
+  };
+  const bump = d => {
+    const base = parseFloat(inp.value);
+    inp.value = String(clamp((isNaN(base) ? (o.min !== undefined ? o.min : 0) : base) + d * st));
+    inp.dispatchEvent(new Event('input', {bubbles:true}));
+  };
+  const el = h('div',{className:'stp'+(o.wide?' wide':'')},
+    h('button',{className:'stp-b', type:'button', onClick:e=>{e.preventDefault(); bump(-1);}},'−'),
+    inp,
+    h('button',{className:'stp-b', type:'button', onClick:e=>{e.preventDefault(); bump(1);}},'+'));
+  el.input = inp;
+  return el;
+}
+
+/* newsprint date picker — same grid as the Today mini calendar */
+function datePicker(value, onPick){
+  let view = fromDs(value || today());
+  view = new Date(view.getFullYear(), view.getMonth(), 1);
+  const label = h('b',{});
+  const grid = h('div',{className:'mini-grid'});
+  const draw = ()=>{
+    const yr = view.getFullYear(), mo = view.getMonth();
+    label.textContent = view.toLocaleDateString('en-US',{month:'long', year:'numeric'});
+    grid.innerHTML = '';
+    DOW.forEach(dw=>grid.append(h('div',{className:'mini-dow'}, dw[0])));
+    const first = new Date(yr,mo,1); let sdow = first.getDay(); sdow = sdow===0?6:sdow-1;
+    const dim = new Date(yr,mo+1,0).getDate(), prevDim = new Date(yr,mo,0).getDate();
+    const cells = [];
+    for(let i=sdow-1;i>=0;i--) cells.push({date:new Date(yr,mo-1,prevDim-i), other:true});
+    for(let i=1;i<=dim;i++) cells.push({date:new Date(yr,mo,i), other:false});
+    while(cells.length%7) cells.push({date:new Date(yr,mo+1,cells.length-sdow-dim+1), other:true});
+    for(const {date,other} of cells){
+      const dstr = ds(date);
+      const cls = 'mini-d'+(other?' dim':'')+(dstr===today()?' today':'')+(dstr===value?' sel':'');
+      grid.append(h('div',{className:cls, onClick:()=>{ back.remove(); onPick(dstr); }}, date.getDate()));
+    }
+  };
+  const step = n => { view = new Date(view.getFullYear(), view.getMonth()+n, 1); draw(); };
+  const back = sheet(
+    h('h3',{},'Pick a date'),
+    h('div',{className:'dp-head'},
+      h('button',{className:'icon-btn', onClick:()=>step(-1)},'‹'), label,
+      h('button',{className:'icon-btn', onClick:()=>step(1)},'›')),
+    grid,
+    h('button',{className:'cta ghost', onClick:()=>{ back.remove(); onPick(today()); }},'TODAY'));
+  draw();
+  return back;
+}
+
+/* newsprint confirm — replaces window.confirm */
+function confirmSheet(title, msg, okLabel, onOk){
+  const back = sheet(
+    h('div',{className:'kick'},'Hold up'),
+    h('h3',{style:{marginTop:'4px'}}, title),
+    msg ? h('div',{className:'empty', style:{textAlign:'left', padding:'12px 0 0'}}, msg) : null,
+    h('div',{className:'btnrow'},
+      h('button',{className:'cta ghost', style:{flex:'1'}, onClick:()=>back.remove()},'CANCEL'),
+      h('button',{className:'cta', style:{flex:'1'}, onClick:()=>{ back.remove(); onOk(); }}, okLabel)));
+  return back;
+}
+
+/* rest timer — lives on <body> so a re-render can't kill it */
+let REST = null;
+function stopRest(){
+  if(REST){ clearInterval(REST.iv); REST.el.remove(); REST = null; }
+}
+function restChime(){
+  try{ if(navigator.vibrate) navigator.vibrate([120,70,120]); }catch(e){}
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    const ac = new AC(), o = ac.createOscillator(), g = ac.createGain();
+    o.type = 'square'; o.frequency.value = 784;
+    o.connect(g); g.connect(ac.destination);
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.18, ac.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.55);
+    o.start(); o.stop(ac.currentTime + 0.55);
+    setTimeout(()=>{ try{ ac.close(); }catch(e){} }, 900);
+  }catch(e){}
+}
+function startRest(secs){
+  stopRest();
+  secs = parseInt(secs) || 0;
+  if(secs <= 0) return;
+  let left = secs, total = secs;
+  const t = h('div',{className:'rest-t'});
+  const prog = h('div',{className:'rest-prog'});
+  const paint = ()=>{
+    const m = Math.floor(left/60), sec = left%60;
+    t.textContent = m ? m+':'+String(sec).padStart(2,'0') : sec+'s';
+    prog.style.width = Math.max(0, Math.min(100, (left/total)*100)) + '%';
+  };
+  const el = h('div',{className:'rest-bar'}, prog,
+    h('div',{}, h('div',{className:'rest-lbl'},'Rest'), t),
+    h('div',{style:{marginLeft:'auto', display:'flex', gap:'8px'}},
+      h('button',{onClick:()=>{ left += 30; total = Math.max(total, left); paint(); }},'+30s'),
+      h('button',{onClick:stopRest},'Skip')));
+  paint();
+  document.body.append(el);
+  REST = { el, iv: setInterval(()=>{
+    left--;
+    if(left <= 0){ stopRest(); restChime(); toast('Rest done — next set 💪'); return; }
+    paint();
+  }, 1000) };
 }
 
 /* ── constants ─────────────────────────────────────────────────────── */
@@ -672,6 +820,7 @@ const EXERCISES = [
 ].map(([name,muscle,equip,sub,timed])=>({name,muscle,equip,sub,timed:!!timed}));
 
 const MUSCLES = ['all','chest','back','legs','shoulders','arms','core','cardio','full'];
+const DEFAULT_REST = 90;   /* seconds between sets, used when a workout doesn't say */
 
 /* library order: body part (same order as the filter chips), then A–Z within it */
 const MUSCLE_ORDER = MUSCLES.filter(m=>m!=='all');
@@ -980,13 +1129,23 @@ function scheduleSheet(prefDate, entry, prefWorkout){
     days: entry && entry.recur && entry.recur.days ? [...entry.recur.days] : [],
   };
   const wSel = styledSelect(allWorkoutOptions(), st.workoutId);
-  const dateInp = h('input',{className:'inp', type:'date', value:st.date});
+  let pickedDate = st.date;
+  const dateBtn = h('button',{className:'date-btn', type:'button', onClick:e=>{
+    e.preventDefault();
+    datePicker(pickedDate, d=>{
+      pickedDate = d;
+      dateTxt.textContent = fromDs(d).toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric', year:'numeric'});
+    });
+  }});
+  const dateTxt = h('span',{}, fromDs(st.date).toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric', year:'numeric'}));
+  dateBtn.append(dateTxt, h('span',{className:'ssel-arr'},'▾'));
   const curFreq = st.freq==='daily'&&st.interval>1 ? 'daily2' : (st.freq==='weekly'&&st.interval===2 ? 'weekly2' : st.freq);
   const freqSel = styledSelect(
     [['none','Does not repeat'],['daily','Daily'],['daily2','Every N days'],['weekly','Weekly on chosen days'],['weekly2','Every 2 weeks'],['monthly','Monthly']],
     curFreq, ()=>syncVis());
-  const intInp = h('input',{className:'inp', type:'number', min:'2', max:'60', value:String(Math.max(2,st.interval))});
-  const intWrap = h('div',{className:'field', style:{display:'none'}}, h('label',{},'Repeat every N days'), intInp);
+  const intFld = numField({min:2, max:60, step:1, attrs:{value:String(Math.max(2,st.interval))}});
+  const intInp = intFld.input;
+  const intWrap = h('div',{className:'field', style:{display:'none'}}, h('label',{},'Repeat every N days'), intFld);
   const dayChips = h('div',{className:'chiprow'});
   const jsDows = [[1,'Mon'],[2,'Tue'],[3,'Wed'],[4,'Thu'],[5,'Fri'],[6,'Sat'],[0,'Sun']];
   const dayWrap = h('div',{className:'field', style:{display:'none'}}, h('label',{},'On days'), dayChips);
@@ -1012,14 +1171,14 @@ function scheduleSheet(prefDate, entry, prefWorkout){
     if(v==='daily')   recur = {freq:'daily', interval:1};
     if(v==='daily2')  recur = {freq:'daily', interval:Math.min(60, Math.max(2, parseInt(intInp.value)||2))};
     if(v==='weekly' || v==='weekly2'){
-      const days = st.days.length ? st.days : [fromDs(dateInp.value||today()).getDay()];
+      const days = st.days.length ? st.days : [fromDs(pickedDate||today()).getDay()];
       recur = {freq:'weekly', interval:v==='weekly2'?2:1, days};
     }
     if(v==='monthly') recur = {freq:'monthly', interval:1};
     const rec = {
       id: entry ? entry.id : uid(),
       workoutId: wSel.value,
-      date: dateInp.value || today(),
+      date: pickedDate || today(),
       time: null,
       recur, until: null,
       exceptions: entry ? (entry.exceptions||[]) : [],
@@ -1032,7 +1191,7 @@ function scheduleSheet(prefDate, entry, prefWorkout){
   const back = sheet(
     h('h3',{}, isEdit ? 'Edit workout' : 'Schedule workout'),
     h('div',{className:'field'}, h('label',{},'Workout'), wSel),
-    h('div',{className:'field'}, h('label',{}, isEdit&&st.freq!=='none' ? 'Series start date' : 'Date'), dateInp),
+    h('div',{className:'field'}, h('label',{}, isEdit&&st.freq!=='none' ? 'Series start date' : 'Date'), dateBtn),
     h('div',{className:'field'}, h('label',{},'Repeats'), freqSel),
     intWrap, dayWrap,
     h('button',{className:'cta', onClick:save}, isEdit ? 'SAVE CHANGES' : 'ADD TO CALENDAR'));
@@ -1079,7 +1238,9 @@ function startSession(ev){
     date: ev.date || today(),
     workoutId: w.id, name: w.name,
     startedAt: Date.now(), finished: false,
-    ex: w.ex.map(([name,sets,reps,wt])=>({name, reps, sets:Array.from({length:sets},()=>({done:false, weight: wt?String(wt):'', reps:''}))})),
+    ex: w.ex.map(([name,sets,reps,wt,rest])=>({name, reps,
+      rest: (rest === undefined || rest === null) ? DEFAULT_REST : rest,
+      sets:Array.from({length:sets},()=>({done:false, weight: wt?String(wt):'', reps:''}))})),
   };
   render();
 }
@@ -1098,33 +1259,43 @@ function SessionScreen(){
     return wrap;
   }
   wrap.append(h('div',{className:'app-bar'},
-    h('button',{className:'icon-btn', onClick:()=>{ if(confirm('Quit this workout? Progress won’t be saved.')){STATE.session=null; render();} }},'✕'),
+    h('button',{className:'icon-btn', onClick:()=>confirmSheet(
+      'Quit this workout?', 'Nothing you’ve logged in this session will be saved.', 'QUIT',
+      ()=>{ stopRest(); STATE.session=null; render(); })},'✕'),
     h('div',{className:'title'}, s.name),
     h('span',{style:{width:'34px'}})));
   const body = h('div',{className:'scrolly'});
   for(const ex of s.ex){
     const card = h('div',{className:'card'});
-    card.append(h('div',{className:'exhead'}, h('b',{},ex.name), h('span',{}, `target ${ex.reps} reps`)));
+    card.append(h('div',{className:'exhead'}, h('b',{},ex.name),
+      h('span',{}, `target ${ex.reps}` + (ex.rest ? ` · rest ${ex.rest}s` : ''))));
     ex.sets.forEach((set,i)=>{
-      const wInp = h('input',{type:'number', inputmode:'decimal', placeholder:'kg', value:set.weight});
-      wInp.addEventListener('input',()=>set.weight=wInp.value);
-      const rInp = h('input',{type:'number', inputmode:'numeric', placeholder:ex.reps.replace(/\D/g,'')||'reps', value:set.reps});
-      rInp.addEventListener('input',()=>set.reps=rInp.value);
-      const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{set.done=!set.done; tick.classList.toggle('on'); tick.textContent='✓';}},'✓');
+      const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:'kg', value:set.weight}});
+      wFld.input.addEventListener('input',()=>set.weight=wFld.input.value);
+      const rFld = numField({min:0, step:1, attrs:{placeholder:ex.reps.replace(/\D/g,'')||'reps', value:set.reps}});
+      rFld.input.addEventListener('input',()=>set.reps=rFld.input.value);
+      const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{
+        set.done = !set.done;
+        tick.classList.toggle('on');
+        if(set.done) startRest(ex.rest); else stopRest();
+      }},'✓');
       card.append(h('div',{className:'setrow'},
-        h('span',{className:'snum'},'S'+(i+1)), wInp, h('span',{className:'unit'},'kg'), rInp, h('span',{className:'unit'},'reps'), tick));
+        h('span',{className:'snum'},'S'+(i+1)), wFld, rFld, tick));
     });
     body.append(card);
   }
   body.append(h('button',{className:'cta', onClick:()=>{
-    const anyDone = s.ex.some(e=>e.sets.some(x=>x.done));
-    if(!anyDone && !confirm('No sets ticked — finish anyway?')) return;
-    const logs = db.logs;
-    logs.push({id:uid(), date:s.date, entryId:s.entryId, workoutId:s.workoutId, name:s.name,
-      finishedAt:Date.now(), mins:Math.round((Date.now()-s.startedAt)/60000),
-      ex:s.ex.map(e=>({name:e.name, sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps}))}))});
-    db.logs = logs;
-    s.finished = true; render();
+    const finish = ()=>{
+      stopRest();
+      const logs = db.logs;
+      logs.push({id:uid(), date:s.date, entryId:s.entryId, workoutId:s.workoutId, name:s.name,
+        finishedAt:Date.now(), mins:Math.round((Date.now()-s.startedAt)/60000),
+        ex:s.ex.map(e=>({name:e.name, sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps}))}))});
+      db.logs = logs;
+      s.finished = true; render();
+    };
+    if(s.ex.some(e=>e.sets.some(x=>x.done))) finish();
+    else confirmSheet('Nothing ticked yet','You haven’t ticked a single set. Log this workout anyway?','FINISH ANYWAY', finish);
   }},'FINISH WORKOUT 🏁'));
   wrap.append(body);
   return wrap;
@@ -1242,6 +1413,7 @@ function customSheet(existing){
     reps:String(e[2]).replace(/s$/,''),
     timed:/s$/.test(String(e[2])) || isTimed(e[0]),
     weight:e[3]||'',
+    rest:(e[4] === undefined || e[4] === null) ? DEFAULT_REST : e[4],
   })) : [];
   const nameInp = h('input',{className:'inp', placeholder:'e.g. Saturday Smash', value: existing?existing.name:''});
   const listEl = h('div',{});
@@ -1249,18 +1421,21 @@ function customSheet(existing){
     listEl.innerHTML='';
     if(!rows.length) listEl.append(h('div',{className:'empty'},'No exercises yet.\nAdd some iron below.'));
     rows.forEach((r,i)=>{
-      const setsInp = h('input',{type:'number', inputmode:'numeric', min:'1', max:'12', value:String(r.sets)});
-      setsInp.addEventListener('input',()=>r.sets=setsInp.value);
-      const repsInp = h('input',{type:'number', inputmode:'numeric', min:'1', value:String(r.reps)});
-      repsInp.addEventListener('input',()=>r.reps=repsInp.value);
+      const setsFld = numField({min:1, max:12, attrs:{value:String(r.sets)}});
+      setsFld.input.addEventListener('input',()=>r.sets=setsFld.input.value);
+      const repsFld = numField({min:1, step:r.timed?5:1, attrs:{value:String(r.reps)}});
+      repsFld.input.addEventListener('input',()=>r.reps=repsFld.input.value);
       const ctl = h('div',{className:'bx-ctl'},
-        h('div',{className:'bx-f'}, h('label',{},'Sets'), setsInp),
-        h('div',{className:'bx-f'}, h('label',{}, r.timed?'Seconds':'Reps'), repsInp));
+        h('div',{className:'bx-f'}, h('label',{},'Sets'), setsFld),
+        h('div',{className:'bx-f'}, h('label',{}, r.timed?'Seconds':'Reps'), repsFld));
       if(isWeighted(r.name)){
-        const wInp = h('input',{type:'number', inputmode:'decimal', placeholder:'—', value:r.weight?String(r.weight):''});
-        wInp.addEventListener('input',()=>r.weight=wInp.value);
-        ctl.append(h('div',{className:'bx-f'}, h('label',{},'Kg'), wInp));
+        const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:'—', value:r.weight?String(r.weight):''}});
+        wFld.input.addEventListener('input',()=>r.weight=wFld.input.value);
+        ctl.append(h('div',{className:'bx-f'}, h('label',{},'Kg'), wFld));
       }
+      const restFld = numField({min:0, max:600, step:15, attrs:{value:String(r.rest)}});
+      restFld.input.addEventListener('input',()=>r.rest=restFld.input.value);
+      ctl.append(h('div',{className:'bx-f'}, h('label',{},'Rest s'), restFld));
       const meta = EXERCISES.find(e=>e.name===r.name);
       listEl.append(h('div',{className:'bx'},
         h('div',{className:'bx-head'},
@@ -1277,7 +1452,7 @@ function customSheet(existing){
     h('div',{className:'field'}, h('label',{},'Name'), nameInp),
     h('div',{className:'field'}, h('label',{},'Exercises'), listEl),
     h('button',{className:'cta ghost', onClick:()=>exercisePicker(ex=>{
-      rows.push({name:ex.name, sets:3, reps: ex.timed?30:10, timed:!!ex.timed, weight:''});
+      rows.push({name:ex.name, sets:3, reps: ex.timed?30:10, timed:!!ex.timed, weight:'', rest:DEFAULT_REST});
       redraw();
     })},'＋ ADD EXERCISE'),
     h('button',{className:'cta', onClick:()=>{
@@ -1287,10 +1462,9 @@ function customSheet(existing){
       const ex = rows.map(r=>{
         const sets = Math.max(1, parseInt(r.sets)||3);
         const reps = String(Math.max(1, parseInt(r.reps)||(r.timed?30:10))) + (r.timed?'s':'');
-        const t = [r.name, sets, reps];
         const w = parseFloat(r.weight);
-        if(!isNaN(w) && w>0) t.push(w);
-        return t;
+        const rest = Math.min(600, Math.max(0, parseInt(r.rest)));
+        return [r.name, sets, reps, (!isNaN(w) && w>0) ? w : null, isNaN(rest) ? DEFAULT_REST : rest];
       });
       const list = db.custom.filter(c=>!existing || c.id!==existing.id);
       list.push({id: existing?existing.id:'c_'+uid(), name, focus:'Custom workout', mins: existing&&existing.mins?existing.mins:40, ex});
@@ -1516,7 +1690,8 @@ function settingsSheet(){
       h('div',{className:'meta', style:{marginTop:'6px'}},'Stored only on this device. Get a key at console.anthropic.com. Without one, the coach runs in demo mode.')),
     h('button',{className:'cta', onClick:()=>{ db.apiKey = keyInp.value.trim(); back.remove(); render(); toast('Settings saved'); }},'SAVE'),
     h('button',{className:'cta ghost danger', style:{marginTop:'10px'}, onClick:()=>{
-      if(confirm('Erase ALL Brologue data on this device (schedule, logs, settings)?')){ localStorage.clear(); location.reload(); }
+      confirmSheet('Erase all data?','This wipes your schedule, logs, custom workouts and settings on this device. It cannot be undone.','ERASE EVERYTHING',
+        ()=>{ localStorage.clear(); location.reload(); });
     }},'RESET ALL DATA'));
 }
 
