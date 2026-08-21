@@ -913,9 +913,14 @@ function getWorkout(id){
   const c = db.custom.find(w=>w.id===id);
   return c ? {id:c.id, name:c.name, focus:c.focus||'Custom workout', mins:c.mins||40, ex:c.ex} : null;
 }
-function allWorkoutOptions(){
-  const opts = Object.entries(WORKOUTS).map(([id,w])=>[id,w.name]);
-  for(const c of db.custom) opts.push([c.id, c.name+' (custom)']);
+function allWorkoutOptions(keepId){
+  const have = myGear();
+  const keep = w => canDoWorkout(w, have);
+  const opts = [];
+  /* your own workouts first, then the presets */
+  for(const c of db.custom) if(keep(c) || c.id===keepId) opts.push([c.id, c.name+' (custom)']);
+  for(const [id,w] of Object.entries(WORKOUTS)) if(keep(w) || id===keepId) opts.push([id, w.name]);
+  if(!opts.length) for(const [id,w] of Object.entries(WORKOUTS)) opts.push([id, w.name]);
   return opts;
 }
 
@@ -1128,7 +1133,7 @@ function scheduleSheet(prefDate, entry, prefWorkout){
     interval: entry && entry.recur ? (entry.recur.interval||1) : 1,
     days: entry && entry.recur && entry.recur.days ? [...entry.recur.days] : [],
   };
-  const wSel = styledSelect(allWorkoutOptions(), st.workoutId);
+  const wSel = styledSelect(allWorkoutOptions(st.workoutId), st.workoutId);
   let pickedDate = st.date;
   const dateBtn = h('button',{className:'date-btn', type:'button', onClick:e=>{
     e.preventDefault();
@@ -1320,15 +1325,11 @@ function LibraryScreen(){
   return wrap;
 }
 function buildPlans(body){
-  body.append(h('div',{className:'sl', style:{marginTop:'4px'}},'Preset workout plans'));
-  for(const p of PLANS){
-    body.append(h('div',{className:'plan-card', onClick:()=>planSheet(p)},
-      h('h4',{}, p.name),
-      h('div',{className:'pd'}, p.days+' — '+p.desc),
-      h('div',{className:'tags'}, p.tags.map(t=>h('span',{className:'tag'},t)))));
-  }
-  body.append(h('div',{className:'sl'},'Custom workouts'));
-  for(const c of db.custom){
+  const have = myGear();
+  /* ── your own workouts first ── */
+  body.append(h('div',{className:'sl', style:{marginTop:'4px'}},'Custom workouts'));
+  const mine = db.custom.filter(c=>canDoWorkout(c, have));
+  for(const c of mine){
     body.append(h('div',{className:'plan-card'},
       h('h4',{}, c.name),
       h('div',{className:'pd'}, c.ex.map(e=>e[0]).join(' · ')),
@@ -1337,7 +1338,24 @@ function buildPlans(body){
         h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>customSheet(c)},'EDIT'),
         h('button',{className:'cta ghost danger', style:{flex:1, padding:'10px'}, onClick:()=>{ db.custom = db.custom.filter(x=>x.id!==c.id); render(); }},'DELETE'))));
   }
+  if(!mine.length) body.append(h('div',{className:'empty'},
+    db.custom.length ? 'Your custom workouts need equipment you don’t have ticked.'
+                     : 'Nothing of your own yet — build one below.'));
   body.append(h('button',{className:'cta ghost', onClick:()=>customSheet()},'＋ CREATE CUSTOM WORKOUT'));
+
+  /* ── then the presets you can actually train ── */
+  body.append(h('div',{className:'sl'},'Preset workout plans'));
+  const plans = PLANS.filter(p=>canDoPlan(p, have));
+  for(const p of plans){
+    body.append(h('div',{className:'plan-card', onClick:()=>planSheet(p)},
+      h('h4',{}, p.name),
+      h('div',{className:'pd'}, p.days+' — '+p.desc),
+      h('div',{className:'tags'}, p.tags.map(t=>h('span',{className:'tag'},t)))));
+  }
+  if(!plans.length) body.append(h('div',{className:'empty'},
+    'No preset plan fits your equipment yet.\nTick more gear in Settings to open these up.'));
+  else if(plans.length < PLANS.length) body.append(h('div',{className:'meta', style:{marginTop:'10px'}},
+    plans.length+' of '+PLANS.length+' plans fit your equipment'));
 }
 function planSheet(p){
   const dowName = n=>['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][n];
@@ -1365,6 +1383,33 @@ function planSheet(p){
       toast(p.name+' added to your calendar 🔥');
     }},'SCHEDULE THIS PLAN'));
 }
+/* ── equipment matching ────────────────────────────────────────────
+   An exercise is doable when it needs nothing, or you own one of the
+   implements it lists. A *workout* is doable when every exercise is
+   either doable outright or has a substitute chain you can do — the
+   same 'try instead' data the Library shows. */
+function myGear(){ return new Set(db.equipment); }
+function canDoExercise(ex, have){
+  if(!ex) return false;
+  return ex.equip.length === 0 || ex.equip.some(q=>have.has(q));
+}
+function canDoNamed(name, have, depth){
+  const ex = EXERCISES.find(e=>e.name===name);
+  if(!ex) return true;                       // unknown name: never block on it
+  if(canDoExercise(ex, have)) return true;
+  return !!ex.sub && (depth||0) < 5 && canDoNamed(ex.sub, have, (depth||0)+1);
+}
+function canDoWorkout(w, have){
+  if(!w || !w.ex || !w.ex.length) return true;
+  have = have || myGear();
+  return w.ex.every(t=>canDoNamed(t[0], have, 0));
+}
+function canDoPlan(pl, have){
+  have = have || myGear();
+  return pl.sched.every(([,wid])=>canDoWorkout(lookupWorkout(wid), have));
+}
+function lookupWorkout(id){ return WORKOUTS[id] || db.custom.find(c=>c.id===id) || null; }
+
 function isWeighted(exName){
   const ex = EXERCISES.find(e=>e.name===exName);
   return !!(ex && ex.equip.some(q=>['barbell','ez bar','trap bar','dumbbell','kettlebell','plate',
@@ -1376,6 +1421,8 @@ function isTimed(exName){
 }
 function exercisePicker(onPick){
   let muscle='all', q='';
+  const have = myGear();
+  const pool = EXERCISES.filter(ex=>canDoExercise(ex, have));
   const search = h('input',{className:'inp', placeholder:'Search exercises…'});
   const chips = h('div',{className:'chiprow'});
   const list = h('div',{className:'pick-list'});
@@ -1383,7 +1430,7 @@ function exercisePicker(onPick){
     list.innerHTML='';
     const ql = q.trim().toLowerCase();
     let shown = 0;
-    for(const ex of EXERCISES){
+    for(const ex of pool){
       if(muscle!=='all' && ex.muscle!==muscle) continue;
       if(ql && !ex.name.toLowerCase().includes(ql)) continue;
       list.append(h('div',{className:'pick-item', onClick:()=>{back.remove(); onPick(ex);}},
@@ -1393,7 +1440,7 @@ function exercisePicker(onPick){
         h('span',{className:'pm'}, ex.muscle)));
       shown++;
     }
-    if(!shown) list.append(h('div',{className:'empty'},'No match. Try another filter.'));
+    if(!shown) list.append(h('div',{className:'empty'},'Nothing here you can do with your equipment.'));
   };
   MUSCLES.forEach(m=>{
     const c = h('button',{className:'chip'+(m===muscle?' on':''), onClick:()=>{
@@ -1404,7 +1451,10 @@ function exercisePicker(onPick){
     chips.append(c);
   });
   search.addEventListener('input',()=>{ q = search.value; refresh(); });
-  const back = sheet(h('h3',{},'Pick an exercise'), h('div',{className:'field'}, search), chips, list);
+  const back = sheet(h('h3',{},'Pick an exercise'),
+    h('div',{className:'meta', style:{margin:'6px 0 10px'}},
+      pool.length+' of '+EXERCISES.length+' moves fit your equipment'),
+    h('div',{className:'field'}, search), chips, list);
   refresh();
 }
 function customSheet(existing){
