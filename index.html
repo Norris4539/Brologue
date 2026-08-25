@@ -208,12 +208,23 @@
   .extag{font-family:var(--small);font-size:8.5px;letter-spacing:1.5px;font-weight:700;
     color:var(--red);text-transform:uppercase}
   .lastline{font-family:var(--serif);font-style:italic;font-size:11.5px;color:var(--faded);margin-top:6px}
+  /* today's target, read out of the log */
+  .target{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;
+    border:2px solid var(--ink);background:var(--paper2)}
+  .target .tw{font-family:var(--wood);font-size:21px;letter-spacing:.5px;line-height:1;white-space:nowrap}
+  .target .tn{font-family:var(--serif);font-style:italic;font-size:11px;color:var(--faded);line-height:1.3}
+  .target.up{border-color:var(--red)}
+  .target.up .tw{color:var(--red)}
+  .target.back{border-style:dashed}
+  /* the two data buttons share a row, so they run smaller than a full-width CTA */
+  .cta.bk{flex:1;font-size:13px;letter-spacing:1.5px;padding:11px 4px}
   .lastcell{font-family:var(--serif);font-style:italic;font-size:9.5px;color:var(--tan);
-    white-space:nowrap;min-width:52px;flex:none}
-  /* the "last time" column costs width, so the session's steppers run narrower */
-  .setrow .stp input{width:38px}
-  .setrow .stp-b{width:26px}
-  .setrow{gap:6px}
+    white-space:nowrap;min-width:44px;flex:none}
+  /* the "last time" column costs width, so the session's steppers run narrower —
+     but wide enough for a 102.5 kg overload target */
+  .setrow .stp input{width:46px}
+  .setrow .stp-b{width:23px}
+  .setrow{gap:4px}
   .lastcell b{font-style:normal;color:var(--faded)}
   .prtag{background:var(--red);color:#fff;font-family:var(--small);font-size:7px;letter-spacing:1.2px;
     font-weight:700;padding:1px 4px;text-transform:uppercase;margin-left:4px;vertical-align:1px}
@@ -1185,6 +1196,56 @@ function sessionVolume(l){
   return v;
 }
 
+/* ── progressive overload: what belongs on the bar today ──────────── */
+function repRange(spec){
+  const t = String(spec === undefined || spec === null ? '' : spec).trim();
+  if(/s$/i.test(t)) return null;                       // "45s" is a hold, not a rep count
+  const m = t.match(/(\d+)\s*[-\u2013\u2014]\s*(\d+)/);
+  if(m) return {lo:+m[1], hi:+m[2]};
+  const n = t.match(/^(\d+)$/);
+  return n ? {lo:+n[1], hi:+n[1]} : null;
+}
+function tidyWeight(x){ return x >= 20 ? Math.round(x / 2.5) * 2.5 : Math.round(x * 2) / 2; }
+function loadStep(name, w){
+  const ex = EXERCISES.find(e=>e.name===name);
+  if(w < 15) return 1;
+  if(w < 30) return 2.5;
+  return (ex && ['legs','back','full'].includes(ex.muscle)) ? 5 : 2.5;
+}
+function topWeight(sets){
+  let w = 0;
+  for(const st of sets){ const v = parseFloat(st.w); if(!isNaN(v) && v > w) w = v; }
+  return w;
+}
+function clearedRange(sets, hi){
+  return sets.length > 0 && sets.every(st=>(parseFloat(st.r)||0) >= hi);
+}
+function overloadTarget(name, repsSpec){
+  if(isTimed(name)) return null;
+  const range = repRange(repsSpec);
+  if(!range) return null;
+  const hist = logsFor(name);                          // newest first
+  if(!hist.length) return null;
+  const lw = topWeight(hist[0].sets);
+  if(!lw) return null;                                 // bodyweight — nothing to load
+  if(clearedRange(hist[0].sets, range.hi)){
+    const w = Math.round((lw + loadStep(name, lw)) * 10) / 10;
+    return {kind:'up', weight:w, from:lw,
+      note:`You cleared ${range.hi} on every set at ${lw} kg. Take the jump.`};
+  }
+  let stuck = 0;                                       // sessions in a row at this weight, range unmet
+  for(const hh of hist){
+    if(topWeight(hh.sets) >= lw && !clearedRange(hh.sets, range.hi)) stuck++;
+    else break;
+  }
+  if(stuck >= 3) return {kind:'back', weight:Math.max(tidyWeight(lw * 0.9), 1), from:lw,
+    note:`Three sessions stalled at ${lw} kg. Drop 10%, rebuild, come back for it.`};
+  if(stuck >= 2) return {kind:'hold', weight:lw, from:lw,
+    note:`Second crack at ${lw} kg. Own every rep before you add a plate.`};
+  return {kind:'hold', weight:lw, from:lw,
+    note:`Hit ${range.hi} on all sets at ${lw} kg to earn the next jump.`};
+}
+
 /* ── the one button's label follows whatever is on today's card ──── */
 const CTA_LABELS = {
   chest:'PUMP THE PECS →', back:'BEND THE BAR →', legs:'QUADZILLA →',
@@ -1225,6 +1286,51 @@ function streakCount(){
 }
 
 /* ── misc ui helpers ───────────────────────────────────────────────── */
+/* ── backup / restore — the only copy of this data lives in this browser ── */
+const BACKUP_KEYS = ['bl_schedule','bl_logs','bl_equipment','bl_custom_workouts','bl_coach_history'];
+function backupPayload(){
+  const data = {};
+  for(const k of BACKUP_KEYS){
+    const v = localStorage.getItem(k);
+    if(v !== null) data[k] = v;      // the API key is deliberately left out
+  }
+  return {app:'brologue', version:1, exportedAt:new Date().toISOString(), data};
+}
+function downloadBackup(){
+  const blob = new Blob([JSON.stringify(backupPayload(), null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = h('a',{href:url, download:`brologue-${today()}.json`});
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  store.set('bl_last_backup', today());
+  toast('Backup saved');
+}
+function backupCounts(data){
+  const n = k => { try{ const v = JSON.parse(data[k] || '[]'); return Array.isArray(v) ? v.length : 0; }catch(e){ return 0; } };
+  return {logs:n('bl_logs'), sched:n('bl_schedule'), custom:n('bl_custom_workouts')};
+}
+function restoreFrom(file){
+  const fr = new FileReader();
+  fr.onerror = ()=>toast('Could not read that file');
+  fr.onload = ()=>{
+    let payload = null;
+    try{ payload = JSON.parse(fr.result); }catch(e){ payload = null; }
+    if(!payload || payload.app !== 'brologue' || !payload.data || typeof payload.data !== 'object')
+      return toast('That is not a Brologue backup');
+    const c = backupCounts(payload.data);
+    const when = String(payload.exportedAt || '').slice(0,10) || 'an unknown date';
+    confirmSheet('Restore this backup?',
+      `Taken ${when} — ${c.logs} logged session${c.logs===1?'':'s'}, ${c.sched} scheduled entr${c.sched===1?'y':'ies'}, ${c.custom} custom workout${c.custom===1?'':'s'}.\n\nThis replaces everything currently on this device.`,
+      'RESTORE', ()=>{
+        for(const k of BACKUP_KEYS) localStorage.removeItem(k);
+        for(const k of Object.keys(payload.data))
+          if(BACKUP_KEYS.includes(k)) localStorage.setItem(k, payload.data[k]);
+        location.reload();
+      });
+  };
+  fr.readAsText(file);
+}
+
 function toast(msg){
   document.querySelectorAll('.toast').forEach(t=>t.remove());
   const t = h('div',{className:'toast'}, msg);
@@ -1510,7 +1616,8 @@ function startWorkout(w, ev){
     startedAt: Date.now(), finished: false,
     ex: w.ex.map(([name,sets,reps,wt,rest])=>({name, reps,
       rest: (rest === undefined || rest === null) ? DEFAULT_REST : rest,
-      sets:Array.from({length:sets},()=>({done:false, weight: wt?String(wt):'', reps:''}))})),
+      plan: wt ? String(wt) : '',    // the builder's number — a seed, beaten by real history
+      sets:Array.from({length:sets},()=>({done:false, weight:'', reps:''}))})),
   };
   render();
 }
@@ -1555,13 +1662,18 @@ function SessionScreen(){
     h('div',{className:'extag'}, (meta?meta.muscle+' · ':'') + `target ${ex.reps}` + (ex.rest?` · rest ${ex.rest}s`:'')));
   if(prev) body.append(h('div',{className:'lastline'},
     `Last time · ${prev.sets.map(setLabel).join(', ')}`));
+  const target = overloadTarget(ex.name, ex.reps);
+  if(target) body.append(h('div',{className:'target '+target.kind},
+    h('span',{className:'tw'}, (target.kind==='up' ? '↑ ' : target.kind==='back' ? '↓ ' : '→ ') + target.weight + ' kg'),
+    h('span',{className:'tn'}, target.note)));
 
   const card = h('div',{className:'card', style:{marginTop:'10px'}});
   const drawSets = ()=>{
     card.innerHTML = '';
     ex.sets.forEach((set,i)=>{
       const pv = prev && prev.sets[i];
-      if(pv && !set.weight) set.weight = pv.w || '';
+      if(!set.weight) set.weight = target ? String(target.weight)
+        : (pv ? String(pv.w || '') : (ex.plan || ''));
       const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}});
       wFld.input.addEventListener('input',()=>set.weight=wFld.input.value);
       const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(ex.reps.replace(/\D/g,'')||'reps'), value:set.reps}});
@@ -2041,11 +2153,60 @@ function buildAsk(body){
 
 /* ── Coach (Claude) ────────────────────────────────────────────────── */
 const COACH_MODEL = 'claude-opus-4-8';
+function weeklyVolumes(n){
+  const out = [];
+  for(let i = 0; i < n; i++){
+    const start = wkStart(addDays(new Date(), -7 * i));
+    const a = ds(start), b = ds(addDays(start, 6));
+    let vol = 0, sess = 0;
+    for(const l of db.logs) if(l.date >= a && l.date <= b){ vol += sessionVolume(l); sess++; }
+    out.push({week:a, sess, vol:Math.round(vol)});
+  }
+  return out;
+}
+/* every number the coach is allowed to talk about */
+function trainingDigest(){
+  const logs = db.logs.slice().sort((a,b)=>(b.finishedAt||0)-(a.finishedAt||0));
+  if(!logs.length) return 'No sessions logged yet — this user has never recorded a workout.';
+  const out = ['Recent sessions, newest first (weights in kg, "bw" = bodyweight):'];
+  for(const l of logs.slice(0,12)){
+    const ex = (l.ex||[]).slice(0,8).map(e=>{
+      const ss = e.sets.slice(0,6).map(st=>{
+        const w = parseFloat(st.w);
+        return (isNaN(w) || !w ? 'bw' : w) + 'x' + (st.r || '?');
+      }).join(',');
+      return `${e.name} ${ss}`;
+    }).join('; ');
+    out.push(`- ${l.date} ${l.name} (${l.mins||'?'} min, ${Math.round(sessionVolume(l))} kg volume): ${ex}`);
+  }
+  const byEx = {};
+  for(const l of logs) for(const e of (l.ex||[])){
+    const w = topWeight(e.sets||[]);
+    if(!w) continue;
+    (byEx[e.name] = byEx[e.name] || []).push({date:l.date, w});
+  }
+  const trends = Object.entries(byEx).filter(([,v])=>v.length >= 2)
+    .sort((a,b)=>b[1].length - a[1].length).slice(0,8)
+    .map(([n,v])=>{
+      const now = v[0], then = v[v.length-1];
+      const d = Math.round((now.w - then.w) * 10) / 10;
+      return `- ${n}: ${then.w} kg on ${then.date} -> ${now.w} kg on ${now.date} (${d>0?'+':''}${d} kg over ${v.length} sessions)`;
+    });
+  if(trends.length) out.push('', 'Heaviest set per lift, oldest to newest:', ...trends);
+  out.push('', 'Last four weeks:',
+    ...weeklyVolumes(4).map(w=>`- week of ${w.week}: ${w.sess} session${w.sess===1?'':'s'}, ${w.vol} kg volume`));
+  return out.join('\n').slice(0, 5000);
+}
 function coachSystemPrompt(){
-  const recent = db.logs.slice(-6).map(l=>`${l.date}: ${l.name}`).join('; ') || 'none yet';
   const sched = db.schedule.slice(0,8).map(e=>{ const w=getWorkout(e.workoutId); return (w?w.name:'?')+' ('+recurLabel(e)+')'; }).join('; ') || 'nothing scheduled';
   return `You are Brologue Coach — a warm, motivating, no-nonsense fitness and nutrition coach inside the Brologue workout app. Give practical, specific, safe advice on training, meal plans, and diet. Use short sections and bullet lists; keep answers tight and actionable; plain text only (no markdown tables). Add a brief note to consult a professional for medical issues when relevant.
-User context — available equipment: ${db.equipment.length?db.equipment.join(', '):'bodyweight only'}. Current schedule: ${sched}. Recent completed workouts: ${recent}. Current streak: ${streakCount()} days.`;
+
+User context — available equipment: ${db.equipment.length?db.equipment.join(', '):'bodyweight only'}. Current schedule: ${sched}. Current streak: ${streakCount()} days.
+
+TRAINING LOG
+${trainingDigest()}
+
+Work from that log. Name real lifts, weights and dates back to the user, and call out the stalls, jumps and gaps you can actually see in it. Never invent a number that is not listed above — if the log does not cover something, say so and ask.`;
 }
 const DEMO_REPLIES = [
   [/meal|diet|eat|nutrition|food|protein|cut|bulk/i,
@@ -2190,9 +2351,21 @@ function settingsSheet(){
     }}, q);
     eqChips.append(c);
   });
+  const fileInp = h('input',{type:'file', accept:'application/json,.json', style:{display:'none'},
+    onChange:e=>{ const f = e.target.files && e.target.files[0]; if(f) restoreFrom(f); e.target.value=''; }});
+  const lastBk = store.get('bl_last_backup', '');
   const back = sheet(
     h('h3',{},'Settings'),
     h('div',{className:'field'}, h('label',{},'My equipment (bodyweight always counts)'), eqChips),
+    h('div',{className:'field'}, h('label',{},'Your training data'),
+      h('div',{className:'btnrow'},
+        h('button',{className:'cta ghost bk', onClick:downloadBackup},'⭳ BACK UP'),
+        h('button',{className:'cta ghost bk', onClick:()=>fileInp.click()},'⭱ RESTORE')),
+      fileInp,
+      h('div',{className:'meta', style:{marginTop:'6px'}},
+        `${db.logs.length} logged session${db.logs.length===1?'':'s'} and ${db.custom.length} custom workout${db.custom.length===1?'':'s'} live only in this browser — clearing site data or changing phones wipes them. `
+        + (lastBk ? `Last backup: ${lastBk}.` : 'Never backed up.')
+        + ' Your API key is never written to the file.')),
     h('div',{className:'field'}, h('label',{},'Anthropic API key — for the Claude coach'), keyInp,
       h('div',{className:'meta', style:{marginTop:'6px'}},'Stored only on this device. Get a key at console.anthropic.com. Without one, the coach runs in demo mode.')),
     h('button',{className:'cta', onClick:()=>{ db.apiKey = keyInp.value.trim(); back.remove(); render(); toast('Settings saved'); }},'SAVE'),
