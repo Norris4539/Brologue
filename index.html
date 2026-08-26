@@ -245,6 +245,58 @@
   .stat .v{font-family:var(--wood);font-size:24px;line-height:1}
   .stat .k{font-family:var(--small);font-size:7.5px;letter-spacing:1.3px;font-weight:700;
     color:var(--tan);text-transform:uppercase;margin-top:3px}
+  /* ── the monthly issue: a band in the list, a front page behind it ── */
+  .issue-band{display:block;width:100%;text-align:left;border:2px solid var(--ink);
+    background:var(--paper2);padding:9px 11px;margin-top:16px;cursor:pointer}
+  .issue-band.on{background:var(--paper2);border-color:var(--ink)}
+  .ib-t{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .ib-m{font-family:var(--wood);font-size:21px;letter-spacing:.6px;text-transform:uppercase;line-height:1}
+  .ib-v{font-family:var(--small);font-size:7.5px;font-weight:700;letter-spacing:1.4px;
+    text-transform:uppercase;color:var(--tan);white-space:nowrap}
+  .ib-b{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px}
+  .ib-s{font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;color:var(--faded)}
+  .ib-r{font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:1.3px;
+    text-transform:uppercase;background:var(--red);color:var(--paper);border:1.5px solid var(--ink);
+    padding:4px 8px;white-space:nowrap;flex:none}
+  .ib-c{color:var(--tan);font-size:10px;font-family:var(--small);flex:none}
+
+  .iss-mast{display:flex;justify-content:space-between;font-family:var(--small);font-size:8px;
+    font-weight:700;letter-spacing:2.2px;text-transform:uppercase;color:var(--faded)}
+  .iss-plate{font-family:var(--wood);font-size:42px;line-height:.9;letter-spacing:1px;
+    text-transform:uppercase;margin:3px 0}
+  .iss-plate em{font-style:normal;color:var(--red)}
+  .iss-date{display:flex;justify-content:space-between;gap:8px;border-top:2px solid var(--ink);
+    border-bottom:2px solid var(--ink);padding:4px 0;font-family:var(--small);font-size:8px;
+    font-weight:700;letter-spacing:1.6px;text-transform:uppercase}
+  .iss-date .r{color:var(--red)}
+  .iss-proof{font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--tan);margin-top:7px}
+  .iss-kick{font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:2.4px;
+    text-transform:uppercase;color:var(--red);margin-top:14px}
+  .iss-head{font-family:var(--wood);font-size:44px;line-height:.85;letter-spacing:.5px;
+    text-transform:uppercase;margin-top:5px}
+  .iss-deck{font-family:var(--serif);font-style:italic;font-size:14px;line-height:1.4;
+    color:var(--faded);margin-top:9px;padding-bottom:11px;border-bottom:1.5px solid var(--ink)}
+  .iss-lede{margin-top:11px;font-size:13px;line-height:1.6}
+  .iss-lede p{margin:0 0 8px}
+  .iss-lede p:first-child::first-letter{font-family:var(--wood);float:left;font-size:38px;
+    line-height:.8;padding:3px 6px 0 0;color:var(--red)}
+  .iss-bars{display:flex;align-items:flex-end;gap:7px;height:88px;border-bottom:2px solid var(--ink)}
+  .iss-bars .c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:4px}
+  .iss-bars .b{background:var(--ink);min-height:2px}
+  .iss-bars .c.best .b{background:var(--red)}
+  .iss-bars .n{font-family:var(--small);font-size:8px;font-weight:700;text-align:center;
+    color:var(--faded)}
+  .iss-foot{display:flex;gap:7px;margin-top:4px}
+  .iss-foot span{flex:1;text-align:center;font-family:var(--small);font-size:7.5px;font-weight:700;
+    letter-spacing:.8px;text-transform:uppercase;color:var(--tan)}
+  .iss-coupon{border:2px dashed var(--ink);background:var(--paper2);padding:10px 12px;margin-top:14px}
+  .iss-colo{display:flex;justify-content:space-between;margin-top:15px;padding-top:7px;
+    border-top:3px solid var(--ink);font-family:var(--small);font-size:7.5px;font-weight:700;
+    letter-spacing:1.6px;text-transform:uppercase;color:var(--tan)}
+  .stat .v.hot{color:var(--red)}
+
   .log-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
   .log-h .ln{font-family:var(--wood);font-size:19px;letter-spacing:.6px;text-transform:uppercase}
   .log-h .ld{font-family:var(--small);font-size:8px;letter-spacing:1.3px;font-weight:700;
@@ -1071,6 +1123,7 @@ const STATE = {
   miniDate: new Date(),
   session: null,             // active workout session
   coachBusy: false,
+  histOpen: {},              // ym -> explicit open/closed, overriding the 3-newest default
   deferredInstall: null,
 };
 const db = {
@@ -1727,6 +1780,278 @@ function finishSession(s){
   else confirmSheet('Nothing ticked yet','You haven’t ticked a single set. Log this workout anyway?','FINISH ANYWAY', save);
 }
 
+/* ── the monthly issue ─────────────────────────────────────────────
+   Everything below is a pure reduction over db.logs. Nothing is stored,
+   so an old issue is regenerated, not archived — the paper always
+   reflects the log.
+   ─────────────────────────────────────────────────────────────────── */
+function monthKey(d){ return String(d || '').slice(0,7); }
+function monthName(ym){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y, m-1, 1).toLocaleDateString('en-US',{month:'long'});
+}
+function monthLogs(ym){
+  return db.logs.filter(l=>monthKey(l.date)===ym).sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0));
+}
+function monthsWithLogs(){
+  return [...new Set(db.logs.map(l=>monthKey(l.date)).filter(Boolean))].sort().reverse();
+}
+function longestRun(dates){                      // dates: sorted, unique, 'YYYY-MM-DD'
+  let best = 0, run = 0, prev = null;
+  for(const d of dates){
+    run = (prev && dayDiff(prev, d) === 1) ? run + 1 : 1;
+    if(run > best) best = run;
+    prev = d;
+  }
+  return best;
+}
+function roundCrossed(from, to){                 // the highest 25 kg mark passed this month
+  let hit = null;
+  for(let r = 25; r <= to; r += 25) if(r > from) hit = r;
+  return hit;
+}
+function tonneMark(before, after){               // a new 100-tonne cumulative mark
+  let hit = null;
+  for(let t = 100000; t <= after; t += 100000) if(t > before) hit = t;
+  return hit;
+}
+function monthWeeks(ym, logs){
+  const [y, mo] = ym.split('-').map(Number);
+  const first = new Date(y, mo-1, 1), last = new Date(y, mo, 0);
+  const f = ds(first), e = ds(last), now = today();
+  const out = [];
+  for(let cur = wkStart(first); cur <= last; cur = addDays(cur, 7)){
+    const a = ds(cur), b = ds(addDays(cur, 6));
+    const from = a < f ? f : a, to = b > e ? e : b;
+    if(dayDiff(from, to) + 1 < 3) continue;      // a two-day sliver is not a week
+    if(from > now) continue;                     // the running month stops at this week
+    const inWk = logs.filter(l=>l.date >= a && l.date <= b);
+    out.push({label: fromDs(from).toLocaleDateString('en-US',{month:'short', day:'numeric'}),
+      vol: inWk.reduce((n,l)=>n+sessionVolume(l), 0), sess: inWk.length});
+  }
+  return out;
+}
+function monthIssue(ym){
+  const logs = monthLogs(ym);
+  const prior = db.logs.filter(l=>monthKey(l.date) < ym);
+  const dates = [...new Set(logs.map(l=>l.date))].sort();
+  const volume = logs.reduce((n,l)=>n+sessionVolume(l), 0);
+  const priorVol = prior.reduce((n,l)=>n+sessionVolume(l), 0);
+
+  /* every lift's best this month, against everything logged before it */
+  const before = {};
+  for(const l of prior) for(const e of (l.ex||[])){
+    const w = topWeight(e.sets||[]);
+    if(w > (before[e.name] || 0)) before[e.name] = w;
+  }
+  const mine = {};
+  for(const l of logs) for(const e of (l.ex||[])){
+    const w = topWeight(e.sets||[]);
+    if(!w) continue;
+    if(!mine[e.name] || w > mine[e.name].to) mine[e.name] = {lift:e.name, to:w, when:l.date};
+  }
+  const prs = [];
+  for(const k of Object.keys(mine)){
+    const from = before[k] || 0;
+    if(mine[k].to <= from) continue;
+    prs.push(Object.assign({}, mine[k], {from: from || null,
+      gain: from ? Math.round((mine[k].to - from) * 10) / 10 : null,
+      crossed: from ? roundCrossed(from, mine[k].to) : null}));
+  }
+  prs.sort((a,b)=>b.to - a.to);
+
+  let gap = 0;
+  for(let i = 1; i < dates.length; i++) gap = Math.max(gap, dayDiff(dates[i-1], dates[i]) - 1);
+
+  let bestSess = 0, bestStreak = 0;
+  for(const k of [...new Set(prior.map(l=>monthKey(l.date)))]){
+    const ll = prior.filter(l=>monthKey(l.date) === k);
+    bestSess = Math.max(bestSess, ll.length);
+    bestStreak = Math.max(bestStreak, longestRun([...new Set(ll.map(l=>l.date))].sort()));
+  }
+
+  return {ym, month:monthName(ym), year:+ym.slice(0,4),
+    vol:+ym.slice(0,4) - 1969, no:+ym.slice(5,7),
+    sessions:logs.length, volume, streak:longestRun(dates), gap,
+    weeks:monthWeeks(ym, logs), prs, logs,
+    first: prior.length === 0,
+    priorSessions: prior.length ? bestSess : null,
+    priorStreak: prior.length ? bestStreak : null,
+    tonnage: tonneMark(priorVol, priorVol + volume),
+    partial: ym === monthKey(today())};
+}
+
+/* first rule that fires writes the front page */
+const ISSUE_RULES = [
+  {id:'first',    test:m => m.first},
+  {id:'round',    test:m => m.prs.find(p=>p.crossed)},
+  {id:'climb',    test:m => m.prs.filter(p=>p.gain >= 2.5).sort((a,b)=>b.gain - a.gain)[0]},
+  {id:'attend',   test:m => m.priorSessions !== null && m.sessions > m.priorSessions && m.sessions >= 8},
+  {id:'streak',   test:m => m.priorStreak !== null && m.streak > m.priorStreak && m.streak >= 4},
+  /* below the two behaviour records: a cumulative mark falls eventually just by showing up */
+  {id:'tonnage',  test:m => m.tonnage},
+  {id:'comeback', test:m => m.gap >= 10 && m.sessions >= 8},
+  {id:'quiet',    test:m => m.sessions < 8},
+  {id:'steady',   test:m => true},
+];
+function tonnesOf(v){ return (v/1000).toFixed(1); }
+/* the lede carries a drop cap, so it must never open on a digit */
+const NUMWORD = ['no','one','two','three','four','five','six','seven','eight','nine','ten','eleven',
+  'twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
+function countPhrase(n){
+  return n < NUMWORD.length
+    ? NUMWORD[n].charAt(0).toUpperCase() + NUMWORD[n].slice(1)
+    : 'A total of ' + n;
+}
+function fmtDay(d){ return fromDs(d).toLocaleDateString('en-US',{month:'short', day:'numeric'}); }
+function issueLede(m){
+  const best = m.weeks.slice().sort((a,b)=>b.vol - a.vol)[0];
+  const p1 = `${countPhrase(m.sessions)} session${m.sessions===1?'':'s'} and ${tonnesOf(m.volume)} tonnes through the hands`
+    + (m.streak >= 3 ? `, carried by a ${m.streak}-day run` : '')
+    + (m.gap >= 7 ? `, with ${m.gap} days of quiet in the middle` : '') + '.';
+  const p2 = m.prs.length
+    ? `${countPhrase(m.prs.length)} lift${m.prs.length===1?'':'s'} went past anything on the board before, `
+      + `the heaviest of them ${m.prs[0].lift.toLowerCase()} at ${m.prs[0].to} kg.`
+    : 'Nothing was beaten this month; the board stands exactly as it was.';
+  const p3 = best && best.vol
+    ? ` The biggest week started ${best.label} — ${Math.round(best.vol).toLocaleString('en-GB')} kg `
+      + `across ${best.sess} session${best.sess===1?'':'s'}.`
+    : '';
+  return [p1, p2 + p3];
+}
+function composeIssue(m){
+  let id = 'steady', hit = null;
+  for(const r of ISSUE_RULES){ const v = r.test(m); if(v){ id = r.id; hit = v; break; } }
+  const out = {rule:id, lede:issueLede(m)};
+  if(id === 'first'){
+    out.kicker = 'The first issue';
+    out.headline = 'Issue No. 1';
+    out.deck = 'Every number on this page is a record, for the simple reason that nothing came before it.';
+  } else if(id === 'round'){
+    out.kicker = `${hit.lift} · ${fmtDay(hit.when)}`;
+    out.headline = `${hit.crossed} at last`;
+    out.deck = `The ${hit.lift.toLowerCase()} cleared ${hit.crossed} kg for the first time — ${hit.to} kg on the day.`;
+  } else if(id === 'climb'){
+    out.kicker = `${hit.lift} · ${fmtDay(hit.when)}`;
+    out.headline = `Up ${hit.gain} kilos`;
+    out.deck = `No round numbers fell, but the ${hit.lift.toLowerCase()} moved further than anything else on the card.`;
+  } else if(id === 'tonnage'){
+    out.kicker = 'Cumulative total';
+    out.headline = `${m.tonnage/1000} tonnes`;
+    out.deck = `Everything you have ever lifted, added together, passed ${m.tonnage/1000} tonnes this month.`;
+  } else if(id === 'attend'){
+    out.kicker = 'Attendance record';
+    out.headline = `${m.sessions} sessions`;
+    out.deck = `More trips to the gym than any month on record. The mark to beat was ${m.priorSessions}.`;
+  } else if(id === 'streak'){
+    out.kicker = 'Streak record';
+    out.headline = `${m.streak} days straight`;
+    out.deck = `An unbroken run longer than anything logged before it. The old best was ${m.priorStreak}.`;
+  } else if(id === 'comeback'){
+    out.kicker = 'The comeback';
+    out.headline = 'Back in the room';
+    out.deck = `${m.gap} days went dark in the middle of ${m.month}, and the training started again anyway.`;
+  } else if(id === 'quiet'){
+    out.kicker = 'The record: unbothered';
+    out.headline = `A quiet ${m.month}`;
+    out.deck = `${m.sessions} session${m.sessions===1?'':'s'}, nothing broken`
+      + (m.gap >= 7 ? `, and ${m.gap} days in the middle where the bar did not move` : '') + '. It happens.';
+  } else {
+    out.kicker = 'No records, no excuses';
+    out.headline = 'The work goes on';
+    out.deck = `${m.sessions} sessions and ${tonnesOf(m.volume)} tonnes with nothing broken. `
+      + 'Most months look like this, and most of the progress is made in them.';
+  }
+  return out;
+}
+
+/* what the log says goes on the bar next — only meaningful on the newest issue */
+function repsSpecFor(name){
+  for(let i = db.logs.length - 1; i >= 0; i--){
+    const w = getWorkout(db.logs[i].workoutId);
+    const hit = w && (w.ex||[]).find(e=>e[0] === name);
+    if(hit) return hit[2];
+  }
+  const any = Object.values(WORKOUTS).concat(db.custom).find(w=>(w.ex||[]).some(e=>e[0] === name));
+  const t = any && any.ex.find(e=>e[0] === name);
+  return t ? t[2] : null;
+}
+function issueTargets(m){
+  const seen = {};
+  for(const l of m.logs) for(const e of (l.ex||[]))
+    if(topWeight(e.sets||[])) seen[e.name] = (seen[e.name] || 0) + 1;
+  return Object.keys(seen).sort((a,b)=>seen[b] - seen[a]).slice(0,8)
+    .map(n=>({name:n, t:overloadTarget(n, repsSpecFor(n))}))
+    .filter(x=>x.t).slice(0,3);
+}
+
+function issueSheet(ym){
+  const m = monthIssue(ym), c = composeIssue(m);
+  const peak = Math.max(1, ...m.weeks.map(w=>w.vol));
+  const best = Math.max(0, ...m.weeks.map(w=>w.vol));
+  const targets = monthsWithLogs()[0] === ym ? issueTargets(m) : [];
+  const page = h('div',{});
+
+  page.append(
+    h('div',{className:'iss-mast'}, h('span',{},'Brologue Monthly'), h('span',{},'Est. 1974')),
+    h('div',{className:'iss-plate'},'Bro', h('em',{},'logue')),
+    h('div',{className:'iss-date'},
+      h('span',{}, `Vol. ${m.vol} · No. ${m.no}`),
+      h('span',{className:'r'}, m.partial ? 'Proof copy' : `The ${m.month} issue`),
+      h('span',{},'25¢')),
+    m.partial ? h('div',{className:'iss-proof'},
+      `Goes to press on the 1st — ${m.sessions} session${m.sessions===1?'':'s'} in so far.`) : null,
+    h('div',{className:'iss-kick'}, c.kicker),
+    h('div',{className:'iss-head'}, c.headline),
+    h('div',{className:'iss-deck'}, c.deck),
+    h('div',{className:'iss-lede'}, c.lede.map(p=>h('p',{}, p))));
+
+  page.append(h('div',{className:'sl'},'By the numbers'));
+  page.append(h('div',{className:'stat-row'},
+    h('div',{className:'stat'}, h('div',{className:'v'}, String(m.sessions)),
+      h('div',{className:'k'},'Sessions')),
+    h('div',{className:'stat'}, h('div',{className:'v'}, tonnesOf(m.volume)),
+      h('div',{className:'k'},'Tonnes')),
+    h('div',{className:'stat'}, h('div',{className:'v'+(m.streak>=5?' hot':'')}, String(m.streak)),
+      h('div',{className:'k'},'Best streak')),
+    h('div',{className:'stat'}, h('div',{className:'v'+(m.prs.length?' hot':'')}, String(m.prs.length)),
+      h('div',{className:'k'},'Records'))));
+
+  page.append(h('div',{className:'sl'},'Top of the month'));
+  const board = h('div',{className:'card'});
+  if(m.prs.length){
+    m.prs.slice(0,6).forEach(p=>board.append(h('div',{className:'log-e'},
+      h('span',{}, p.lift, h('span',{className:'prtag'},'PR')),
+      h('span',{className:'lw'}, (p.from ? `${p.from} → ` : '') + `${p.to} kg · ${fmtDay(p.when)}`))));
+    if(m.prs.length > 6) board.append(h('div',{className:'meta', style:{marginTop:'6px'}},
+      `…and ${m.prs.length - 6} more.`));
+  } else {
+    board.append(h('div',{className:'empty', style:{padding:'12px 4px'}},
+      'Nothing beaten this month.'));
+  }
+  page.append(board);
+
+  page.append(h('div',{className:'sl'},'The month in tonnage'));
+  page.append(h('div',{className:'card'},
+    h('div',{className:'iss-bars'}, m.weeks.map(w=>h('div',
+      {className:'c'+(w.vol === best && best > 0 ? ' best' : '')},
+      h('div',{className:'n'}, w.vol ? (w.vol/1000).toFixed(1) : '—'),
+      h('div',{className:'b', style:{height:Math.round(w.vol/peak*74)+'%'}})))),
+    h('div',{className:'iss-foot'}, m.weeks.map(w=>h('span',{}, w.label)))));
+
+  if(targets.length) page.append(h('div',{className:'iss-coupon'},
+    h('div',{className:'iss-kick', style:{marginTop:0}},'On the bar next'),
+    targets.map(x=>h('div',{className:'log-e'},
+      /* first sentence only — split on ". " so a decimal weight survives */
+      h('span',{}, x.name, h('span',{className:'ib-c'},
+        ' ' + x.t.note.replace(/\.\s[\s\S]*$/, '').toLowerCase())),
+      h('span',{className:'lw'}, x.t.weight + ' kg')))));
+
+  page.append(h('div',{className:'iss-colo'},
+    h('span',{},'Printed in your pocket'), h('span',{}, `Brologue · ${m.year}`)));
+  return sheet(page);
+}
+
 /* ── History ───────────────────────────────────────────────────────── */
 function HistoryScreen(){
   const wrap = h('div',{className:'screen anim-fade'});
@@ -1749,30 +2074,51 @@ function HistoryScreen(){
     h('div',{className:'stat'}, h('div',{className:'v'}, volume>=1000 ? (volume/1000).toFixed(1)+'t' : Math.round(volume)+'kg'),
       h('div',{className:'k'},'Volume lifted'))));
 
-  body.append(h('div',{className:'sl'},'Recent sessions'));
-  for(const l of logs.slice(0,40)){
-    const card = h('div',{className:'card', style:{marginTop:'10px'}});
-    const when = l.date ? fromDs(l.date).toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'}).toUpperCase() : '';
-    card.append(h('div',{className:'log-h'},
-      h('span',{className:'ln'}, l.name),
-      h('span',{className:'ld'}, when)));
-    const nSets = (l.ex||[]).reduce((n,e)=>n+e.sets.length,0);
-    card.append(h('div',{className:'meta'}, `${(l.ex||[]).length} exercises · ${nSets} sets · ${l.mins||0} min`));
-    for(const e of (l.ex||[])){
-      const t = topSet(e.sets);
-      if(!t) continue;
-      /* was this the heaviest that lift has ever been, at the time? */
-      const heavier = logsFor(e.name).some(hh => hh.at < (l.finishedAt||0)
-        && hh.sets.some(x=>(parseFloat(x.w)||0) >= (parseFloat(t.w)||0)));
-      const isPr = (parseFloat(t.w)||0) > 0 && !heavier;
-      card.append(h('div',{className:'log-e'},
-        h('span',{}, e.name, isPr ? h('span',{className:'prtag'},'PR') : null),
-        h('span',{className:'lw'}, setLabel(t))));
-    }
-    body.append(card);
-  }
+  /* the list groups itself by month; each header is the way into that issue.
+     Three newest months open, everything older collapses to its spine. */
+  const months = monthsWithLogs();
+  months.forEach((mk, mi)=>{
+    const mlogs = logs.filter(l=>monthKey(l.date) === mk);
+    const iss = monthIssue(mk);
+    const open = (mk in STATE.histOpen) ? STATE.histOpen[mk] : mi < 3;
+    const bits = [`${mlogs.length} session${mlogs.length===1?'':'s'}`, tonnesOf(iss.volume)+'t'];
+    if(iss.prs.length) bits.push(`${iss.prs.length} record${iss.prs.length===1?'':'s'}`);
+    body.append(h('div',{className:'issue-band'+(open?' on':''),
+      onClick:()=>{ STATE.histOpen[mk] = !open; render(); }},
+      h('div',{className:'ib-t'},
+        h('span',{className:'ib-m'}, monthName(mk) + ' ' + mk.slice(0,4)),
+        h('span',{className:'ib-v'}, `Vol. ${iss.vol} · No. ${iss.no}`)),
+      h('div',{className:'ib-b'},
+        h('span',{className:'ib-s'}, bits.join(' · ')),
+        h('span',{className:'ib-c'}, open ? '▾' : '▸'),
+        h('button',{className:'ib-r', onClick:e=>{ e.stopPropagation(); issueSheet(mk); }},
+          iss.partial ? 'PROOF →' : 'READ →'))));
+    if(!open) return;
+    for(const l of mlogs) body.append(sessionCard(l));
+  });
   wrap.append(body);
   return wrap;
+}
+function sessionCard(l){
+  const card = h('div',{className:'card', style:{marginTop:'10px'}});
+  const when = l.date ? fromDs(l.date).toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'}).toUpperCase() : '';
+  card.append(h('div',{className:'log-h'},
+    h('span',{className:'ln'}, l.name),
+    h('span',{className:'ld'}, when)));
+  const nSets = (l.ex||[]).reduce((n,e)=>n+e.sets.length,0);
+  card.append(h('div',{className:'meta'}, `${(l.ex||[]).length} exercises · ${nSets} sets · ${l.mins||0} min`));
+  for(const e of (l.ex||[])){
+    const t = topSet(e.sets);
+    if(!t) continue;
+    /* was this the heaviest that lift has ever been, at the time? */
+    const heavier = logsFor(e.name).some(hh => hh.at < (l.finishedAt||0)
+      && hh.sets.some(x=>(parseFloat(x.w)||0) >= (parseFloat(t.w)||0)));
+    const isPr = (parseFloat(t.w)||0) > 0 && !heavier;
+    card.append(h('div',{className:'log-e'},
+      h('span',{}, e.name, isPr ? h('span',{className:'prtag'},'PR') : null),
+    h('span',{className:'lw'}, setLabel(t))));
+  }
+  return card;
 }
 
 /* ── Library ───────────────────────────────────────────────────────── */
