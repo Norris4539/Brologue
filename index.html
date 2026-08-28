@@ -64,6 +64,7 @@
   .exrow{display:flex;justify-content:space-between;align-items:center;font-size:13.5px;padding:8px 0;border-bottom:1px dotted var(--tan)}
   .exrow:last-child{border-bottom:0}
   .exrow .set{font-family:var(--wood);font-size:17px;letter-spacing:1px;color:var(--red);white-space:nowrap;margin-left:10px}
+  .exrow .exrest{font-family:var(--small);font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--tan)}
   .cta{display:block;width:100%;background:var(--red);color:var(--paper);text-align:center;font-family:var(--wood);
     font-size:19px;letter-spacing:3px;padding:13px;margin-top:16px;text-transform:uppercase;
     border:1.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
@@ -2145,14 +2146,12 @@ function buildPlans(body){
   body.append(h('div',{className:'sl', style:{marginTop:'4px'}},'Custom workouts'));
   const mine = db.custom.filter(c=>canDoWorkout(c, have));
   for(const c of mine){
-    body.append(h('div',{className:'plan-card'},
+    body.append(h('div',{className:'plan-card', onClick:()=>customDetail(c)},
       h('h4',{}, c.name),
       h('div',{className:'pd'}, c.ex.map(e=>e[0]).join(' · ')),
-      h('div',{className:'btnrow'},
-        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>scheduleSheet(today(),null,c.id)},'SCHEDULE'),
-        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>customSheet(c)},'EDIT'),
-        h('button',{className:'cta ghost', style:{flex:1, padding:'10px'}, onClick:()=>duplicateCustom(c)},'COPY'),
-        h('button',{className:'cta ghost danger', style:{flex:1, padding:'10px'}, onClick:()=>{ db.custom = db.custom.filter(x=>x.id!==c.id); render(); }},'DELETE'))));
+      h('div',{className:'tags'},
+        h('span',{className:'tag'}, `${c.ex.length} exercise${c.ex.length===1?'':'s'}`),
+        h('span',{className:'tag'}, `${c.mins||40} min`))));
   }
   if(!mine.length) body.append(h('div',{className:'empty'},
     db.custom.length ? 'Your custom workouts need equipment you don’t have ticked.'
@@ -2427,12 +2426,23 @@ function presetPicker(onPick){
     h('div',{className:'card'}, Object.values(WORKOUTS).filter(w=>canDoWorkout(w, have)).map(row)));
   return back;
 }
-function duplicateCustom(c){
-  const copy = JSON.parse(JSON.stringify(c));
-  copy.id = 'c_'+uid();
-  copy.name = c.name + ' copy';
-  db.custom = db.custom.concat([copy]);
-  render(); toast('Duplicated 💪');
+function customDetail(c){
+  const back = sheet(
+    h('h3',{}, c.name),
+    h('div',{className:'meta'},
+      `${c.ex.length} exercise${c.ex.length===1?'':'s'} · ${c.mins||40} min · ${c.focus||'Custom workout'}`),
+    h('div',{className:'card'},
+      c.ex.map(([name,sets,reps,wt,rest])=>h('div',{className:'exrow'},
+        h('span',{}, name,
+          h('span',{className:'exrest'}, rest ? ` ${rest}s rest` : '')),
+        h('span',{className:'set'}, `${sets} × ${reps}${wt?` @ ${wt}kg`:''}`)))),
+    h('div',{className:'btnrow'},
+      h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{ back.remove(); customSheet(c); }},'EDIT'),
+      h('button',{className:'cta ghost danger', style:{flex:1}, onClick:()=>{
+        confirmSheet('Delete this workout?', `“${c.name}” goes for good. Sessions you have already logged from it stay in your history.`,
+          'DELETE', ()=>{ back.remove(); db.custom = db.custom.filter(x=>x.id!==c.id); render(); toast('Deleted'); });
+      }},'DELETE')));
+  return back;
 }
 
 function buildExercises(body){
