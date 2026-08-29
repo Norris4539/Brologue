@@ -209,6 +209,43 @@
   .extag{font-family:var(--small);font-size:8.5px;letter-spacing:1.5px;font-weight:700;
     color:var(--red);text-transform:uppercase}
   .lastline{font-family:var(--serif);font-style:italic;font-size:11.5px;color:var(--faded);margin-top:6px}
+  /* supersets */
+  .ss-tag{font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--red);margin-top:16px;
+    border-top:1.5px solid var(--red);padding-top:6px}
+  .bx-link{display:flex;align-items:center;gap:7px;margin:7px 0 0;padding:5px 0 0;
+    border-top:1px dotted var(--tan)}
+  .bx-link button{border:1.5px solid var(--ink);background:var(--paper);padding:3px 8px;
+    font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
+  .bx-link button.on{background:var(--red);color:var(--paper);border-color:var(--red)}
+  /* estimated one-rep max over time */
+  .spark{width:100%;height:64px;display:block;margin-top:8px}
+  .spark-lbl{display:flex;justify-content:space-between;font-family:var(--small);font-size:8.5px;
+    font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--tan);margin-top:3px}
+
+  /* a warm-up set: the number cell is the toggle, so it costs no width */
+  .setrow .snum.warm{color:var(--red)}
+  .setrow.warm .stp input{opacity:.65}
+  .hintline{font-family:var(--serif);font-style:italic;font-size:10.5px;color:var(--tan);
+    margin-top:7px;text-align:center}
+  .feelrow{display:flex;gap:7px;margin-top:12px}
+  .feelrow button{flex:1;border:1.5px solid var(--ink);background:var(--paper2);padding:9px 2px;
+    font-family:var(--small);font-size:9px;letter-spacing:1.3px;font-weight:700;text-transform:uppercase}
+  .feelrow button.on{background:var(--ink);color:var(--paper)}
+  .notebtn{display:block;width:100%;margin-top:10px;border:1.5px dashed var(--ink);background:none;
+    padding:9px;font-family:var(--small);font-size:9.5px;letter-spacing:1.4px;font-weight:700;
+    text-transform:uppercase;color:var(--faded)}
+  .notebtn.has{border-style:solid;color:var(--ink)}
+  .plate{display:flex;justify-content:space-between;align-items:center;padding:9px 0;
+    border-bottom:1px dotted var(--tan)}
+  .plate:last-child{border-bottom:0}
+  .plate .pw{font-family:var(--wood);font-size:22px;letter-spacing:.5px}
+  .plate .pc{font-family:var(--small);font-size:11px;font-weight:700;letter-spacing:1.2px;color:var(--faded)}
+  .log-note{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--faded);
+    margin-top:8px;padding-top:7px;border-top:1px dotted var(--tan)}
+  .log-feel{font-family:var(--small);font-size:8px;letter-spacing:1.2px;font-weight:700;
+    text-transform:uppercase;color:var(--tan);margin-left:5px}
+
   /* an interrupted workout, offered back */
   .resume{border:2.5px solid var(--red);background:var(--paper2);padding:12px 13px;margin-top:12px}
   .resume .rs-t{font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:2.4px;
@@ -329,7 +366,8 @@
 
   /* session logger */
   .setrow{display:flex;align-items:center;gap:8px;padding:6px 0}
-  .setrow .snum{width:22px;font-size:10px;font-weight:800;color:var(--tan);font-family:var(--small)}
+  .setrow .snum{width:22px;padding:0;flex:none;text-align:left;font-size:10px;font-weight:800;
+    color:var(--tan);font-family:var(--small)}
   .setrow input{width:64px;background:var(--paper);border:1.5px solid var(--ink);color:var(--ink);
     font-size:13px;padding:7px 8px;text-align:center;outline:none;border-radius:0}
   .setrow .unit{font-size:10px;color:var(--tan);margin-left:-4px;font-style:italic}
@@ -529,6 +567,18 @@ function confirmSheet(title, msg, okLabel, onOk){
       h('button',{className:'cta', style:{flex:'1'}, onClick:()=>{ back.remove(); onOk(); }}, okLabel)));
   return back;
 }
+
+/* the screen must not sleep mid-set; chalky hands do not wake phones well */
+let WAKE = null;
+async function keepAwake(on){
+  try{
+    if(on){ if(!WAKE && navigator.wakeLock) WAKE = await navigator.wakeLock.request('screen'); }
+    else if(WAKE){ await WAKE.release(); WAKE = null; }
+  }catch(e){ WAKE = null; }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && STATE.session && !STATE.session.finished) keepAwake(true);
+});
 
 /* rest timer — lives on <body> so a re-render can't kill it */
 let REST = null;
@@ -1286,14 +1336,19 @@ function logsFor(name){
 function lastFor(name){ const hs = logsFor(name); return hs.length ? hs[0] : null; }
 function bestFor(name){
   let best = 0;
-  for(const hh of logsFor(name)) for(const st of hh.sets){
+  for(const hh of logsFor(name)) for(const st of workingSets(hh.sets)){
     const w = parseFloat(st.w); if(!isNaN(w) && w > best) best = w;
   }
   return best;
 }
+/* warm-ups never count: not for a top set, not for volume, not for a PR */
+function workingSets(sets){
+  const w = (sets || []).filter(st => !st.warm);
+  return w.length ? w : [];
+}
 function topSet(sets){
   let best = null;
-  for(const st of sets) if(!best || (parseFloat(st.w)||0) > (parseFloat(best.w)||0)) best = st;
+  for(const st of workingSets(sets)) if(!best || (parseFloat(st.w)||0) > (parseFloat(best.w)||0)) best = st;
   return best;
 }
 function setLabel(st){
@@ -1302,7 +1357,7 @@ function setLabel(st){
 }
 function sessionVolume(l){
   let v = 0;
-  for(const e of (l.ex||[])) for(const st of e.sets){
+  for(const e of (l.ex||[])) for(const st of workingSets(e.sets)){
     const w = parseFloat(st.w)||0, r = parseFloat(st.r)||0;
     v += w * r;
   }
@@ -1327,11 +1382,12 @@ function loadStep(name, w){
 }
 function topWeight(sets){
   let w = 0;
-  for(const st of sets){ const v = parseFloat(st.w); if(!isNaN(v) && v > w) w = v; }
+  for(const st of workingSets(sets)){ const v = parseFloat(st.w); if(!isNaN(v) && v > w) w = v; }
   return w;
 }
 function clearedRange(sets, hi){
-  return sets.length > 0 && sets.every(st=>(parseFloat(st.r)||0) >= hi);
+  const w = workingSets(sets);
+  return w.length > 0 && w.every(st=>(parseFloat(st.r)||0) >= hi);
 }
 function overloadTarget(name, repsSpec){
   if(isTimed(name)) return null;
@@ -1775,18 +1831,26 @@ function startSession(ev){
 }
 function startWorkout(w, ev){
   if(!w) return;
+  keepAwake(true);
   STATE.session = {
-    cur: 0,
+    cur: 0, notes: '',
     entryId: ev && ev.entry ? ev.entry.id : null,
     date: (ev && ev.date) || today(),
     workoutId: w.id, name: w.name,
     startedAt: Date.now(), finished: false,
-    ex: w.ex.map(([name,sets,reps,wt,rest])=>({name, reps,
+    ex: w.ex.map(([name,sets,reps,wt,rest,link])=>({name, reps,
       rest: (rest === undefined || rest === null) ? DEFAULT_REST : rest,
       plan: wt ? String(wt) : '',    // the builder's number — a seed, beaten by real history
+      link: !!link,                  // supersetted with the exercise after it
       sets:Array.from({length:sets},()=>({done:false, weight:'', reps:''}))})),
   };
   render();
+}
+/* consecutive linked exercises train as one station */
+function sessionGroups(ex){
+  const groups = []; let cur = [];
+  ex.forEach((e,i)=>{ cur.push(i); if(!e.link || i === ex.length-1){ groups.push(cur); cur = []; } });
+  return groups;
 }
 function SessionScreen(){
   const s = STATE.session;
@@ -1805,14 +1869,14 @@ function SessionScreen(){
   wrap.append(h('div',{className:'app-bar'},
     h('button',{className:'icon-btn', onClick:()=>confirmSheet(
       'Quit this workout?', 'Nothing you’ve logged in this session will be saved.', 'QUIT',
-      ()=>{ stopRest(); db.live = null; STATE.session=null; render(); })},'✕'),
+      ()=>{ stopRest(); keepAwake(false); db.live = null; STATE.session=null; render(); })},'✕'),
     h('div',{className:'title'}, s.name),
     h('span',{style:{width:'34px'}})));
   const body = h('div',{className:'scrolly'});
   if(s.cur === undefined) s.cur = 0;
-  s.cur = Math.max(0, Math.min(s.ex.length-1, s.cur));
-  const ex = s.ex[s.cur];
-  const prev = lastFor(ex.name), best = bestFor(ex.name);
+  const groups = sessionGroups(s.ex);
+  s.cur = Math.max(0, Math.min(groups.length-1, s.cur));
+  const group = groups[s.cur];
 
   /* progress across the whole workout */
   const totalSets = s.ex.reduce((n,e)=>n+e.sets.length,0);
@@ -1820,66 +1884,106 @@ function SessionScreen(){
   body.append(
     h('div',{className:'prog'}, h('i',{style:{width:(doneSets/totalSets*100)+'%'}})),
     h('div',{className:'prog-lbl'},
-      h('span',{},`Exercise ${s.cur+1} of ${s.ex.length}`),
+      h('span',{}, (group.length > 1 ? 'Superset ' : 'Exercise ') + `${s.cur+1} of ${groups.length}`),
       h('span',{},`${doneSets} / ${totalSets} sets`)));
 
-  const meta = EXERCISES.find(e=>e.name===ex.name);
-  body.append(
-    h('div',{className:'exname', onClick:()=>{ if(meta) exerciseSheet(meta); }}, ex.name),
-    h('div',{className:'extag'}, (meta?meta.muscle+' · ':'') + `target ${ex.reps}` + (ex.rest?` · rest ${ex.rest}s`:'')));
-  if(prev) body.append(h('div',{className:'lastline'},
-    `Last time · ${prev.sets.map(setLabel).join(', ')}`));
-  const target = overloadTarget(ex.name, ex.reps);
-  if(target) body.append(h('div',{className:'target '+target.kind},
-    h('span',{className:'tw'}, (target.kind==='up' ? '↑ ' : target.kind==='back' ? '↓ ' : '→ ') + target.weight + ' kg'),
-    h('span',{className:'tn'}, target.note)));
+  group.forEach((gi, pos)=>{
+    const ex = s.ex[gi];
+    const prev = lastFor(ex.name), best = bestFor(ex.name);
+    const meta = EXERCISES.find(e=>e.name===ex.name);
+    const last = pos === group.length - 1;         // rest waits for the end of the station
+    if(group.length > 1) body.append(h('div',{className:'ss-tag'},
+      `${String.fromCharCode(65+pos)} · superset`));
+    body.append(
+      h('div',{className:'exname', onClick:()=>{ if(meta) exerciseSheet(meta); }}, ex.name),
+      h('div',{className:'extag'}, (meta?meta.muscle+' · ':'') + `target ${ex.reps}` + (ex.rest?` · rest ${ex.rest}s`:'')));
+    if(prev) body.append(h('div',{className:'lastline'},
+      `Last time · ${prev.sets.map(setLabel).join(', ')}`));
+    const target = overloadTarget(ex.name, ex.reps);
+    if(target) body.append(h('div',{className:'target '+target.kind},
+      h('span',{className:'tw'}, (target.kind==='up' ? '↑ ' : target.kind==='back' ? '↓ ' : '→ ') + target.weight + ' kg'),
+      h('span',{className:'tn'}, target.note)));
 
-  const card = h('div',{className:'card', style:{marginTop:'10px'}});
-  const drawSets = ()=>{
-    card.innerHTML = '';
-    ex.sets.forEach((set,i)=>{
-      const pv = prev && prev.sets[i];
-      if(!set.weight) set.weight = target ? String(target.weight)
-        : (pv ? String(pv.w || '') : (ex.plan || ''));
-      const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}});
-      wFld.input.addEventListener('input',()=>{ set.weight=wFld.input.value; saveSession(); });
-      const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(ex.reps.replace(/\D/g,'')||'reps'), value:set.reps}});
-      rFld.input.addEventListener('input',()=>{ set.reps=rFld.input.value; saveSession(); });
-      const isPr = best > 0 && (parseFloat(set.weight)||0) > best;
-      const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{
-        set.done = !set.done;
-        if(set.done) startRest(ex.rest); else stopRest();
-        render();
-      }},'✓');
-      card.append(h('div',{className:'setrow'},
-        h('span',{className:'snum'},'S'+(i+1)),
-        h('span',{className:'lastcell'}, pv ? h('span',{}, 'last ', h('b',{}, `${pv.w||'bw'}×${pv.r||'—'}`)) : '—',
-          (isPr && set.done) ? h('span',{className:'prtag'},'PR') : null),
-        wFld, rFld, tick));
-    });
-    card.append(h('button',{className:'cta ghost', style:{marginTop:'8px', padding:'9px', fontSize:'10px'},
-      onClick:()=>{ const l = ex.sets[ex.sets.length-1];
-        ex.sets.push({done:false, weight:l?l.weight:'', reps:''}); render(); }},'＋ ADD SET'));
-  };
-  drawSets();
-  body.append(card);
+    const card = h('div',{className:'card', style:{marginTop:'10px'}});
+    const drawSets = ()=>{
+      card.innerHTML = '';
+      ex.sets.forEach((set,i)=>{
+        const pv = prev && prev.sets[i];
+        if(!set.weight) set.weight = target ? String(target.weight)
+          : (pv ? String(pv.w || '') : (ex.plan || ''));
+        const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}});
+        wFld.input.addEventListener('input',()=>{ set.weight=wFld.input.value; saveSession(); });
+        const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(ex.reps.replace(/\D/g,'')||'reps'), value:set.reps}});
+        rFld.input.addEventListener('input',()=>{ set.reps=rFld.input.value; saveSession(); });
+        const isPr = !set.warm && best > 0 && (parseFloat(set.weight)||0) > best;
+        const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{
+          set.done = !set.done;
+          if(set.done && !set.warm && last) startRest(ex.rest); else if(!set.done) stopRest();
+          saveSession(); render();
+        }},'✓');
+        card.append(h('div',{className:'setrow'+(set.warm?' warm':'')},
+          h('button',{className:'snum'+(set.warm?' warm':''), title:'Warm-up set',
+            onClick:()=>{ set.warm = !set.warm; store.set('bl_warm_seen', true); saveSession(); render(); }},
+          set.warm ? 'W' : 'S'+(i+1)),
+          h('span',{className:'lastcell'}, pv ? h('span',{}, 'last ', h('b',{}, `${pv.w||'bw'}×${pv.r||'—'}`)) : '—',
+            (isPr && set.done) ? h('span',{className:'prtag'},'PR') : null),
+          wFld, rFld, tick));
+      });
+      card.append(h('div',{className:'btnrow', style:{marginTop:'8px'}},
+        h('button',{className:'cta ghost', style:{flex:2, marginTop:0, padding:'9px', fontSize:'10px'},
+          onClick:()=>{ const l = ex.sets[ex.sets.length-1];
+            ex.sets.push({done:false, weight:l?l.weight:'', reps:''}); saveSession(); render(); }},'＋ ADD SET'),
+        h('button',{className:'cta ghost', style:{flex:1, marginTop:0, padding:'9px', fontSize:'10px'},
+          /* seed from the working weight, not set 1 - set 1 is often a warm-up */
+          onClick:()=>plateSheet(target ? target.weight
+            : Math.max(0, ...ex.sets.filter(x=>!x.warm).map(x=>parseFloat(x.weight)||0)))},'⚖ PLATES')));
+      if(pos === 0 && !store.get('bl_warm_seen', false))
+        card.append(h('div',{className:'hintline'},'Tap a set number to mark it a warm-up.'));
+    };
+    drawSets();
+    body.append(card);
+    /* how did that feel - three taps, and a signal reps alone do not carry */
+    const FEELS = [['easy','Easy'],['right','Just right'],['brutal','Brutal']];
+    body.append(h('div',{className:'feelrow'}, FEELS.map(([k,label])=>
+      h('button',{className:(ex.feel===k?'on':''), onClick:()=>{
+        ex.feel = ex.feel === k ? null : k; saveSession(); render();
+      }}, label))));
+
+  });
+
+  body.append(h('button',{className:'notebtn'+(s.notes?' has':''), onClick:()=>noteSheet(s)},
+    s.notes ? '📝 ' + (s.notes.length > 40 ? s.notes.slice(0,40) + '…' : s.notes) : '📝 ADD A NOTE'));
 
   /* move between exercises */
   const nav = h('div',{className:'sess-nav'},
     h('button',{disabled:s.cur===0, onClick:()=>{ s.cur--; render(); }},'‹ PREV'),
     h('button',{className:'main', onClick:()=>{
-      if(s.cur < s.ex.length-1){ s.cur++; render(); }
+      if(s.cur < groups.length-1){ s.cur++; render(); }
       else finishSession(s);
-    }}, s.cur < s.ex.length-1 ? 'NEXT ›' : 'FINISH 🏁'));
+    }}, s.cur < groups.length-1 ? 'NEXT ›' : 'FINISH 🏁'));
   body.append(nav);
   const dots = h('div',{className:'dots'});
-  s.ex.forEach((e,i)=>dots.append(h('button',{
-    className:'dot'+(i===s.cur?' on':(e.sets.every(x=>x.done)?' done':'')),
+  groups.forEach((g,i)=>dots.append(h('button',{
+    className:'dot'+(i===s.cur?' on':(g.every(j=>s.ex[j].sets.every(x=>x.done))?' done':'')),
     onClick:()=>{ s.cur=i; render(); }})));
   body.append(dots);
   wrap.append(body);
   return wrap;
 }
+function noteSheet(s){
+  const ta = h('textarea',{className:'inp', rows:'4', placeholder:'Left shoulder twinged on set 3…'});
+  ta.value = s.notes || '';
+  const back = sheet(
+    h('div',{className:'kick'},'For the record'),
+    h('h3',{style:{marginTop:'4px'}},'Session note'),
+    h('div',{className:'meta', style:{marginBottom:'8px'}},'Kept with this workout in your history.'),
+    ta,
+    h('button',{className:'cta', onClick:()=>{
+      s.notes = ta.value.trim(); saveSession(); back.remove(); render();
+    }},'SAVE NOTE'));
+  return back;
+}
+
 function finishSession(s){
   const save = ()=>{
     stopRest();
@@ -1899,7 +2003,7 @@ function finishSession(s){
           + 'Settings, then free some space and finish again.'));
       return;
     }
-    db.live = null;
+    db.live = null; keepAwake(false);
     s.finished = true; render();
   };
   if(s.ex.some(e=>e.sets.some(x=>x.done))) save();
@@ -2111,6 +2215,143 @@ function issueTargets(m){
     .filter(x=>x.t).slice(0,3);
 }
 
+/* ── the issue, drawn to a canvas so it can leave the app ───────────
+   Hand-drawn rather than a snapshot library: no dependency, and the CSP
+   on a wrapped build would block one anyway. ────────────────────────── */
+function issueImage(m, c){
+  const W = 1080, H = 1350, P = 78;
+  const cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  const g = cv.getContext('2d');
+  const WOOD = '"Haettenschweiler","Arial Narrow Bold",Impact,sans-serif';
+  const SERIF = 'Georgia,"Times New Roman",serif';
+  const SMALL = 'Verdana,sans-serif';
+  const INK = '#2b2016', RED = '#b3311c', TAN = '#a2917a', FADED = '#6b5c48';
+
+  g.fillStyle = '#f4ead6'; g.fillRect(0, 0, W, H);
+  g.fillStyle = 'rgba(162,145,122,.35)';                       // halftone tooth
+  for(let yy = 0; yy < H; yy += 8) for(let xx = 0; xx < W; xx += 8) g.fillRect(xx, yy, 1.5, 1.5);
+
+  const rule = (yy, t)=>{ g.fillStyle = INK; g.fillRect(P, yy, W - P * 2, t); };
+  const tracked = (txt, x, yy, sp)=>{ let cx = x;
+    for(const ch of txt){ g.fillText(ch, cx, yy); cx += g.measureText(ch).width + sp; } return cx; };
+  const wrap = (txt, x, yy, maxW, lh)=>{
+    const words = String(txt).split(' '); let line = '', out = yy;
+    for(const w of words){
+      const t = line ? line + ' ' + w : w;
+      if(g.measureText(t).width > maxW && line){ g.fillText(line, x, out); out += lh; line = w; }
+      else line = t;
+    }
+    if(line){ g.fillText(line, x, out); out += lh; }
+    return out;
+  };
+
+  let y = 108;
+  g.fillStyle = FADED; g.font = `bold 20px ${SMALL}`;
+  tracked('BROLOGUE MONTHLY', P, y, 5);
+  g.textAlign = 'right'; g.fillText('EST. 1974', W - P, y); g.textAlign = 'left';
+
+  y += 96;
+  g.font = `104px ${WOOD}`;
+  g.fillStyle = INK; g.fillText('BRO', P, y);
+  const bw = g.measureText('BRO').width;
+  g.fillStyle = RED; g.fillText('LOGUE', P + bw, y);
+
+  y += 30; rule(y, 5); y += 42;
+  g.fillStyle = INK; g.font = `bold 20px ${SMALL}`;
+  tracked(`VOL. ${m.vol}  NO. ${m.no}`, P, y, 4);
+  g.textAlign = 'center'; g.fillStyle = RED;
+  g.fillText(m.partial ? 'PROOF COPY' : `THE ${m.month.toUpperCase()} ISSUE`, W / 2, y);
+  g.textAlign = 'right'; g.fillStyle = INK; g.fillText('25\u00A2', W - P, y);
+  g.textAlign = 'left';
+  y += 18; rule(y, 5);
+
+  y += 74;
+  g.fillStyle = RED; g.font = `bold 22px ${SMALL}`;
+  tracked(c.kicker.toUpperCase(), P, y, 5);
+
+  y += 34;
+  g.fillStyle = INK;
+  let size = 128;
+  g.font = `${size}px ${WOOD}`;
+  const head = c.headline.toUpperCase();
+  while(g.measureText(head).width > (W - P * 2) * 1.9 && size > 62){ size -= 6; g.font = `${size}px ${WOOD}`; }
+  y = wrap(head, P, y + size * 0.78, W - P * 2, size * 0.9);
+
+  y += 12;
+  g.fillStyle = FADED; g.font = `italic 30px ${SERIF}`;
+  y = wrap(c.deck, P, y, W - P * 2, 40);
+
+  y += 16; g.fillStyle = INK; g.fillRect(P, y, W - P * 2, 3); y += 54;
+
+  const stats = [[String(m.sessions), 'SESSIONS'], [tonnesOf(m.volume), 'TONNES'],
+                 [String(m.streak), 'BEST STREAK'], [String(m.prs.length), 'RECORDS']];
+  const cw = (W - P * 2) / 4;
+  stats.forEach(([v, k], i)=>{
+    const cx = P + cw * i + cw / 2;
+    g.textAlign = 'center';
+    g.fillStyle = (i >= 2 && v !== '0') ? RED : INK;
+    g.font = `76px ${WOOD}`; g.fillText(v, cx, y);
+    g.fillStyle = FADED; g.font = `bold 17px ${SMALL}`;
+    g.fillText(k, cx, y + 32);
+    if(i < 3){ g.fillStyle = TAN; g.fillRect(P + cw * (i + 1), y - 56, 1, 92); }
+  });
+  g.textAlign = 'left';
+  y += 84; g.fillStyle = INK; g.fillRect(P, y, W - P * 2, 3);
+
+  if(m.prs.length){
+    y += 52;
+    g.fillStyle = RED; g.font = `bold 20px ${SMALL}`;
+    tracked('TOP OF THE MONTH', P, y, 5);
+    y += 20;
+    m.prs.slice(0, 4).forEach(pr=>{
+      y += 46;
+      g.fillStyle = INK; g.font = `30px ${SERIF}`;
+      g.fillText(pr.lift, P, y);
+      g.textAlign = 'right'; g.fillStyle = RED; g.font = `40px ${WOOD}`;
+      g.fillText(pr.to + ' KG', W - P, y + 4); g.textAlign = 'left';
+      g.fillStyle = TAN; g.fillRect(P, y + 14, W - P * 2, 1);
+    });
+  }
+
+  const peak = Math.max(1, ...m.weeks.map(w=>w.vol));
+  const bH = 108, bTop = H - 166 - bH, bw2 = (W - P * 2) / m.weeks.length;
+  g.fillStyle = RED; g.font = `bold 20px ${SMALL}`;
+  tracked('THE MONTH IN TONNAGE', P, bTop - 22, 5);
+  const best = Math.max(0, ...m.weeks.map(w=>w.vol));
+  m.weeks.forEach((w, i)=>{
+    const hh = Math.round((w.vol / peak) * bH);
+    g.fillStyle = (w.vol === best && best > 0) ? RED : INK;
+    g.fillRect(P + bw2 * i + 8, bTop + bH - hh, bw2 - 16, Math.max(hh, 2));
+    g.fillStyle = TAN; g.font = `bold 16px ${SMALL}`; g.textAlign = 'center';
+    g.fillText(w.label.toUpperCase(), P + bw2 * i + bw2 / 2, bTop + bH + 26);
+  });
+  g.textAlign = 'left';
+  g.fillStyle = INK; g.fillRect(P, bTop + bH, W - P * 2, 3);
+
+  g.fillStyle = INK; g.fillRect(P, H - 118, W - P * 2, 6);
+  g.fillStyle = TAN; g.font = `bold 18px ${SMALL}`;
+  tracked('PRINTED IN YOUR POCKET', P, H - 78, 4);
+  g.textAlign = 'right'; g.fillText(`BROLOGUE  ${m.year}`, W - P, H - 78); g.textAlign = 'left';
+  return cv;
+}
+function shareIssue(ym){
+  const m = monthIssue(ym), c = composeIssue(m);
+  issueImage(m, c).toBlob(blob=>{
+    if(!blob) return toast('Could not draw the page');
+    const file = new File([blob], `brologue-${ym}.png`, {type:'image/png'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:`Brologue — the ${m.month} issue`}).catch(()=>{});
+      return;
+    }
+    const url = URL.createObjectURL(blob);
+    const a = h('a',{href:url, download:`brologue-${ym}.png`});
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 3000);
+    toast('Issue saved');
+  }, 'image/png');
+}
+
 function issueSheet(ym){
   const m = monthIssue(ym), c = composeIssue(m);
   const peak = Math.max(1, ...m.weeks.map(w=>w.vol));
@@ -2173,6 +2414,8 @@ function issueSheet(ym){
         ' ' + x.t.note.replace(/\.\s[\s\S]*$/, '').toLowerCase())),
       h('span',{className:'lw'}, x.t.weight + ' kg')))));
 
+  page.append(h('button',{className:'cta ghost', style:{marginTop:'16px'},
+    onClick:()=>shareIssue(ym)},'⇪ SHARE THIS ISSUE'));
   page.append(h('div',{className:'iss-colo'},
     h('span',{},'Printed in your pocket'), h('span',{}, `Brologue · ${m.year}`)));
   return sheet(page);
@@ -2252,9 +2495,11 @@ function sessionCard(l, prs){
     if(!t) continue;
     const isPr = prs ? prs.has(l.id + '|' + e.name) : false;
     card.append(h('div',{className:'log-e'},
-      h('span',{}, e.name, isPr ? h('span',{className:'prtag'},'PR') : null),
-    h('span',{className:'lw'}, setLabel(t))));
+      h('span',{}, e.name, isPr ? h('span',{className:'prtag'},'PR') : null,
+        e.feel ? h('span',{className:'log-feel'}, e.feel) : null),
+      h('span',{className:'lw'}, setLabel(t))));
   }
+  if(l.notes) card.append(h('div',{className:'log-note'}, '“' + l.notes + '”'));
   return card;
 }
 
@@ -2370,6 +2615,100 @@ function isTimed(exName){
   const ex = EXERCISES.find(e=>e.name===exName);
   return !!(ex && ex.timed);
 }
+/* what to hang on each end of the bar */
+const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
+function plateBreakdown(total, bar){
+  let each = (total - bar) / 2;
+  if(each < 0) return null;
+  const out = [];
+  for(const p of PLATES){
+    const n = Math.floor((each + 1e-9) / p);
+    if(n > 0){ out.push([p, n]); each = Math.round((each - n * p) * 100) / 100; }
+  }
+  return {plates:out, left:Math.round(each * 100) / 100};
+}
+function plateSheet(startWeight){
+  let bar = store.get('bl_bar', 20);
+  let total = parseFloat(startWeight) || bar;
+  const list = h('div',{className:'card', style:{marginTop:'10px'}});
+  const wFld = numField({min:0, step:2.5, wide:true, attrs:{inputmode:'decimal', value:String(total)}});
+  const barRow = h('div',{className:'chiprow'});
+  const draw = ()=>{
+    list.innerHTML = '';
+    const b = plateBreakdown(total, bar);
+    if(!b){
+      list.append(h('div',{className:'empty'},`That is lighter than the ${bar} kg bar.`));
+    } else if(!b.plates.length){
+      list.append(h('div',{className:'empty'},'Just the bar.'));
+    } else {
+      b.plates.forEach(([p,n])=>list.append(h('div',{className:'plate'},
+        h('span',{className:'pw'}, p + ' kg'),
+        h('span',{className:'pc'}, '× ' + n + ' a side'))));
+      if(b.left > 0) list.append(h('div',{className:'plate'},
+        h('span',{className:'pc'},'Cannot make the last'),
+        h('span',{className:'pc'}, b.left * 2 + ' kg')));
+    }
+  };
+  [20, 15, 10, 0].forEach(v=>{
+    const c = h('button',{className:'chip'+(v===bar?' on':''), onClick:e=>{
+      e.preventDefault(); bar = v; store.set('bl_bar', v);
+      barRow.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+      c.classList.add('on'); draw();
+    }}, v ? v + ' kg bar' : 'No bar');
+    barRow.append(c);
+  });
+  wFld.input.addEventListener('input',()=>{ total = parseFloat(wFld.input.value) || 0; draw(); });
+  draw();
+  return sheet(
+    h('div',{className:'kick'},'Loading the bar'),
+    h('h3',{style:{marginTop:'4px'}},'Plate maths'),
+    h('div',{className:'field'}, h('label',{},'Target weight'), wFld),
+    h('div',{className:'field'}, h('label',{},'Bar'), barRow),
+    list);
+}
+
+/* Epley: a comparable number across different rep counts */
+function e1rm(w, r){ return w * (1 + (r || 1) / 30); }
+function oneRmChart(name){
+  const pts = logsFor(name).slice().reverse()          // oldest first
+    .map(hh => {
+      let best = 0;
+      for(const st of workingSets(hh.sets)){
+        const w = parseFloat(st.w) || 0, r = parseFloat(st.r) || 0;
+        if(w > 0 && r > 0) best = Math.max(best, e1rm(w, r));
+      }
+      return {date:hh.date, v:Math.round(best * 10) / 10};
+    }).filter(x => x.v > 0);
+  if(pts.length < 2) return null;                      // one dot is not a trend
+
+  const W = 300, H = 64, lo = Math.min(...pts.map(p=>p.v)), hi = Math.max(...pts.map(p=>p.v));
+  const span = (hi - lo) || 1;
+  const x = i => (pts.length === 1 ? W / 2 : (i / (pts.length - 1)) * (W - 6) + 3);
+  const y = v => H - 6 - ((v - lo) / span) * (H - 14);
+  const line = pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+  const area = line + ` L${x(pts.length-1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class','spark');
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label',
+    `Estimated one-rep max, ${pts[0].v} to ${pts[pts.length-1].v} kilograms over ${pts.length} sessions`);
+  const el = (t, at)=>{ const n = document.createElementNS('http://www.w3.org/2000/svg',t);
+    for(const k in at) n.setAttribute(k, at[k]); return n; };
+  svg.append(el('path',{d:area, fill:'rgba(179,49,28,.13)'}));
+  svg.append(el('path',{d:line, fill:'none', stroke:'#b3311c', 'stroke-width':'2',
+    'stroke-linejoin':'round', 'stroke-linecap':'round'}));
+  const lastP = pts[pts.length-1];
+  svg.append(el('circle',{cx:x(pts.length-1), cy:y(lastP.v), r:'3.5', fill:'#b3311c'}));
+  return h('div',{},
+    h('div',{className:'meta', style:{marginTop:'8px'}},'Estimated 1RM'),
+    svg,
+    h('div',{className:'spark-lbl'},
+      h('span',{}, `${pts[0].v} kg · ${fmtDay(pts[0].date)}`),
+      h('span',{}, `${lastP.v} kg · ${fmtDay(lastP.date)}`)));
+}
+
 function exercisePicker(onPick){
   let muscle='all', q='';
   const chosen = new Set();
@@ -2434,6 +2773,7 @@ function customSheet(existing){
     timed:/s$/.test(String(e[2])) || isTimed(e[0]),
     weight:e[3]||'',
     rest:(e[4] === undefined || e[4] === null) ? DEFAULT_REST : e[4],
+    link:!!e[5],
   })) : [];
   const nameInp = h('input',{className:'inp', placeholder:'e.g. Saturday Smash', value: existing?existing.name:''});
   const listEl = h('div',{});
@@ -2469,7 +2809,13 @@ function customSheet(existing){
               h('div',{className:'bx-name'}, r.name),
               h('div',{className:'bx-mus'}, (meta?meta.muscle:'custom') + (r.timed?' · timed':''))),
             h('button',{className:'bx-x', onClick:()=>{rows.splice(i,1); redraw();}},'✕')),
-          ctl)));
+          ctl,
+          i < rows.length - 1 ? h('div',{className:'bx-link'},
+            h('button',{className:r.link?'on':'', onClick:e=>{
+              e.preventDefault(); r.link = !r.link; redraw();
+            }}, r.link ? '⛓ SUPERSET' : '⛓ LINK'),
+            h('span',{style:{fontFamily:'var(--small)', fontSize:'9px', color:'var(--tan)'}},
+              r.link ? 'trains together with ' + rows[i+1].name : 'with ' + rows[i+1].name)) : null)));
     });
   };
   redraw();
@@ -2498,12 +2844,13 @@ function customSheet(existing){
       const name = nameInp.value.trim();
       if(!name) return toast('Give it a name');
       if(!rows.length) return toast('Add at least one exercise');
-      const ex = rows.map(r=>{
+      const ex = rows.map((r,i)=>{
         const sets = Math.max(1, parseInt(r.sets)||3);
         const reps = String(Math.max(1, parseInt(r.reps)||(r.timed?30:10))) + (r.timed?'s':'');
         const w = parseFloat(r.weight);
         const rest = Math.min(600, Math.max(0, parseInt(r.rest)));
-        return [r.name, sets, reps, (!isNaN(w) && w>0) ? w : null, isNaN(rest) ? DEFAULT_REST : rest];
+        const linked = !!r.link && i < rows.length - 1;    // nothing to pair the last row with
+        return [r.name, sets, reps, (!isNaN(w) && w>0) ? w : null, isNaN(rest) ? DEFAULT_REST : rest, linked];
       });
       const list = db.custom.filter(c=>!existing || c.id!==existing.id);
       list.push({id: existing?existing.id:'c_'+uid(), name, focus:'Custom workout', mins: existing&&existing.mins?existing.mins:40, ex});
@@ -2527,6 +2874,7 @@ function exerciseSheet(ex){
       h('div',{className:'k'},'You don’t have this equipment'),
       h('div',{className:'v'},'↳ Try instead: '+ex.sub)) : null,
     h('div',{className:'sec'},'Your history'),
+    oneRmChart(ex.name),
     hs.length
       ? h('div',{},
           h('div',{className:'log-e'}, h('span',{},'Best set'), h('span',{className:'lw'}, best ? best+' kg' : '—')),
