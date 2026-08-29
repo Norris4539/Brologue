@@ -209,6 +209,16 @@
   .extag{font-family:var(--small);font-size:8.5px;letter-spacing:1.5px;font-weight:700;
     color:var(--red);text-transform:uppercase}
   .lastline{font-family:var(--serif);font-style:italic;font-size:11.5px;color:var(--faded);margin-top:6px}
+  /* an interrupted workout, offered back */
+  .resume{border:2.5px solid var(--red);background:var(--paper2);padding:12px 13px;margin-top:12px}
+  .resume .rs-t{font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:2.4px;
+    text-transform:uppercase;color:var(--red)}
+  .resume .rs-n{font-family:var(--wood);font-size:26px;letter-spacing:.5px;text-transform:uppercase;
+    line-height:1;margin-top:5px}
+  .resume .rs-m{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--faded);margin-top:4px}
+  .resume .btnrow{margin-top:11px}
+  .resume .cta{font-size:15px;letter-spacing:1.5px;padding:11px 4px}
+
   /* today's target, read out of the log */
   .target{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;
     border:2px solid var(--ink);background:var(--paper2)}
@@ -1114,10 +1124,40 @@ const PLANS = [
    sched:[[1,'hiit_1'],[3,'hiit_2'],[5,'hiit_1'],[6,'bw_full']]},
 ];
 
-/* ── storage ───────────────────────────────────────────────────────── */
+/* ── storage ───────────────────────────────────────────────────────────
+   Three jobs beyond read/write: refuse a value of the wrong shape (a bad
+   entry used to take the whole app down), skip re-parsing an unchanged
+   string (the log is read hundreds of times per render), and never throw
+   when the disk is full.
+   ───────────────────────────────────────────────────────────────────── */
+let STORAGE_FULL = false;
+const _memo = {};                       // key -> {raw, val}
+function sameShape(v, d){
+  if(Array.isArray(d)) return Array.isArray(v);
+  if(d !== null && typeof d === 'object') return v !== null && typeof v === 'object' && !Array.isArray(v);
+  return typeof v === typeof d;
+}
 const store = {
-  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch(e){ return d; } },
-  set(k, v){ localStorage.setItem(k, JSON.stringify(v)); },
+  get(k, d){
+    let raw;
+    try{ raw = localStorage.getItem(k); }catch(e){ return d; }
+    if(raw === null) return d;
+    const m = _memo[k];
+    if(m && m.raw === raw) return m.val;
+    let v;
+    try{ v = JSON.parse(raw); }catch(e){ return d; }
+    if(!sameShape(v, d)) return d;      // corrupt or from a future schema
+    _memo[k] = {raw, val:v};
+    return v;
+  },
+  set(k, v){
+    const raw = JSON.stringify(v);
+    try{ localStorage.setItem(k, raw); }
+    catch(e){ STORAGE_FULL = true; return false; }
+    _memo[k] = {raw, val:v};
+    STORAGE_FULL = false;
+    return true;
+  },
 };
 const STATE = {
   tab: 'today',
@@ -1140,7 +1180,26 @@ const db = {
   set custom(v){ store.set('bl_custom_workouts', v); },
   get coach(){ return store.get('bl_coach_history', []); },
   set coach(v){ store.set('bl_coach_history', v); },
+  get live(){ return store.get('bl_active_session', null); },
+  set live(v){ if(v === null) { try{ localStorage.removeItem('bl_active_session'); }catch(e){} delete _memo['bl_active_session']; }
+               else store.set('bl_active_session', v); },
 };
+
+/* ── 1. an interrupted workout survives the tab being evicted ────────
+   Phones kill backgrounded PWAs between sets. The session is written on
+   every change and offered back on the next launch. ─────────────────── */
+function saveSession(){
+  if(STATE.session && !STATE.session.finished) db.live = STATE.session;
+}
+function resumableSession(){
+  const s = db.live;
+  if(!s || s.finished || !s.startedAt) return null;
+  if(Date.now() - s.startedAt > 12 * 3600 * 1000) return null;   // yesterday's is not worth resuming
+  return s;
+}
+function sessionSetCount(s){
+  return (s.ex || []).reduce((n, e) => n + (e.sets || []).filter(x => x.done).length, 0);
+}
 
 /* ── date helpers ──────────────────────────────────────────────────── */
 function ds(d){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; }
@@ -1371,6 +1430,15 @@ function restoreFrom(file){
     try{ payload = JSON.parse(fr.result); }catch(e){ payload = null; }
     if(!payload || payload.app !== 'brologue' || !payload.data || typeof payload.data !== 'object')
       return toast('That is not a Brologue backup');
+    /* every value must be a string holding a JSON array - anything else would
+       land in localStorage as garbage and take the app down on next launch */
+    for(const k of Object.keys(payload.data)){
+      if(!BACKUP_KEYS.includes(k)) continue;
+      let v = null;
+      if(typeof payload.data[k] !== 'string') return toast(`Backup is damaged (${k})`);
+      try{ v = JSON.parse(payload.data[k]); }catch(e){ return toast(`Backup is damaged (${k})`); }
+      if(!Array.isArray(v)) return toast(`Backup is damaged (${k})`);
+    }
     const c = backupCounts(payload.data);
     const when = String(payload.exportedAt || '').slice(0,10) || 'an unknown date';
     confirmSheet('Restore this backup?',
@@ -1406,13 +1474,44 @@ const APP = () => document.getElementById('app');
 function render(){
   const root = APP(); root.innerHTML = '';
   let scr;
-  if(STATE.session) scr = SessionScreen();
-  else if(STATE.tab === 'library')  scr = LibraryScreen();
-  else if(STATE.tab === 'history')  scr = HistoryScreen();
-  else if(STATE.tab === 'coach')    scr = CoachScreen();
-  else scr = TodayScreen();
+  try{
+    if(STATE.session) scr = SessionScreen();
+    else if(STATE.tab === 'library')  scr = LibraryScreen();
+    else if(STATE.tab === 'history')  scr = HistoryScreen();
+    else if(STATE.tab === 'coach')    scr = CoachScreen();
+    else scr = TodayScreen();
+  }catch(err){
+    root.innerHTML = '';
+    root.append(recoveryScreen(err));
+    return;
+  }
   root.append(scr);
   if(!STATE.session) root.append(TabBar());
+  if(STATE.session) saveSession();
+}
+/* the last line of defence: a screen you can still act from */
+function recoveryScreen(err){
+  const wrap = h('div',{className:'screen'});
+  const fileInp = h('input',{type:'file', accept:'application/json,.json', style:{display:'none'},
+    onChange:e=>{ const f = e.target.files && e.target.files[0]; if(f) restoreFrom(f); }});
+  wrap.append(h('div',{className:'app-bar'}, h('div',{className:'title'},'Something broke')));
+  wrap.append(h('div',{className:'scrolly'},
+    h('div',{className:'kick'},'Stop the press'),
+    h('div',{className:'h1'},'We can fix this'),
+    h('div',{className:'meta'},'Brologue could not read its own data on this device. '
+      + 'Restoring a backup usually sorts it; resetting always does, but wipes what is here.'),
+    h('div',{className:'card', style:{marginTop:'12px'}},
+      h('div',{className:'meta', style:{fontFamily:'var(--small)', fontSize:'10px'}},
+        String((err && err.message) || err).slice(0, 160))),
+    h('button',{className:'cta', onClick:()=>fileInp.click()},'⭱ RESTORE A BACKUP'),
+    fileInp,
+    h('button',{className:'cta ghost', onClick:()=>{ db.live = null; STATE.session=null; STATE.tab='today'; render(); }},
+      'DISCARD THE ACTIVE WORKOUT'),
+    h('button',{className:'cta ghost danger', onClick:()=>{
+      confirmSheet('Erase all data?','This wipes everything on this device and starts clean.','ERASE EVERYTHING',
+        ()=>{ try{ localStorage.clear(); }catch(e){} location.reload(); });
+    }},'RESET ALL DATA')));
+  return wrap;
 }
 function TabBar(){
   const tabs = [['today','⚡','Today'],['library','📚','Library'],['history','📈','History'],['coach','💬','Coach']];
@@ -1441,6 +1540,20 @@ function TodayScreen(){
   const dateLabel = new Date().toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric'}).toUpperCase();
 
   body.append(h('div',{className:'kick'}, dateLabel + " — TODAY'S IRON"));
+
+  /* an interrupted workout is offered back before anything else */
+  const live = resumableSession();
+  if(live) body.append(h('div',{className:'resume'},
+    h('div',{className:'rs-t'},'Unfinished business'),
+    h('div',{className:'rs-n'}, live.name),
+    h('div',{className:'rs-m'}, `${sessionSetCount(live)} set${sessionSetCount(live)===1?'':'s'} logged · `
+      + `started ${new Date(live.startedAt).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})}`),
+    h('div',{className:'btnrow'},
+      h('button',{className:'cta', style:{flex:2}, onClick:()=>{ STATE.session = live; render(); }},'RESUME →'),
+      h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{
+        confirmSheet('Discard it?','The sets you logged in that session will not be saved.','DISCARD',
+          ()=>{ db.live = null; render(); });
+      }},'DISCARD'))));
   const streak = streakCount();
   const quote = QUOTES[(new Date().getDate() + new Date().getMonth()) % QUOTES.length];
 
@@ -1692,7 +1805,7 @@ function SessionScreen(){
   wrap.append(h('div',{className:'app-bar'},
     h('button',{className:'icon-btn', onClick:()=>confirmSheet(
       'Quit this workout?', 'Nothing you’ve logged in this session will be saved.', 'QUIT',
-      ()=>{ stopRest(); STATE.session=null; render(); })},'✕'),
+      ()=>{ stopRest(); db.live = null; STATE.session=null; render(); })},'✕'),
     h('div',{className:'title'}, s.name),
     h('span',{style:{width:'34px'}})));
   const body = h('div',{className:'scrolly'});
@@ -1729,9 +1842,9 @@ function SessionScreen(){
       if(!set.weight) set.weight = target ? String(target.weight)
         : (pv ? String(pv.w || '') : (ex.plan || ''));
       const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}});
-      wFld.input.addEventListener('input',()=>set.weight=wFld.input.value);
+      wFld.input.addEventListener('input',()=>{ set.weight=wFld.input.value; saveSession(); });
       const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(ex.reps.replace(/\D/g,'')||'reps'), value:set.reps}});
-      rFld.input.addEventListener('input',()=>set.reps=rFld.input.value);
+      rFld.input.addEventListener('input',()=>{ set.reps=rFld.input.value; saveSession(); });
       const isPr = best > 0 && (parseFloat(set.weight)||0) > best;
       const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{
         set.done = !set.done;
@@ -1773,8 +1886,20 @@ function finishSession(s){
     const logs = db.logs;
     logs.push({id:uid(), date:s.date, entryId:s.entryId, workoutId:s.workoutId, name:s.name,
       finishedAt:Date.now(), mins:Math.round((Date.now()-s.startedAt)/60000),
-      ex:s.ex.map(e=>({name:e.name, sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps}))}))});
+      notes:s.notes || '',
+      ex:s.ex.map(e=>({name:e.name, feel:e.feel || null,
+        sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps, warm:x.warm||undefined}))}))});
     db.logs = logs;
+    if(STORAGE_FULL){
+      /* the write failed - say so instead of losing the session silently */
+      sheet(h('div',{className:'kick'},'Nothing was saved'),
+        h('h3',{style:{marginTop:'4px'}},'This device is out of storage'),
+        h('div',{className:'empty', style:{textAlign:'left', padding:'12px 0 0'}},
+          'Your workout is still on screen and nothing has been lost yet. Back up your data from '
+          + 'Settings, then free some space and finish again.'));
+      return;
+    }
+    db.live = null;
     s.finished = true; render();
   };
   if(s.ex.some(e=>e.sets.some(x=>x.done))) save();
@@ -2077,6 +2202,7 @@ function HistoryScreen(){
 
   /* the list groups itself by month; each header is the way into that issue.
      Three newest months open, everything older collapses to its spine. */
+  const prs = prMap(logs);
   const months = monthsWithLogs();
   months.forEach((mk, mi)=>{
     const mlogs = logs.filter(l=>monthKey(l.date) === mk);
@@ -2095,12 +2221,25 @@ function HistoryScreen(){
         h('button',{className:'ib-r', onClick:e=>{ e.stopPropagation(); issueSheet(mk); }},
           iss.partial ? 'PROOF →' : 'READ →'))));
     if(!open) return;
-    for(const l of mlogs) body.append(sessionCard(l));
+    for(const l of mlogs) body.append(sessionCard(l, prs));
   });
   wrap.append(body);
   return wrap;
 }
-function sessionCard(l){
+/* one pass over the log marks every set that was a record at the time -
+   the old per-row lookup re-parsed the whole log for each exercise */
+function prMap(logs){
+  const best = {}, marks = new Set();
+  for(const l of logs.slice().sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0)))
+    for(const e of (l.ex||[])){
+      const t = topSet(e.sets || []);
+      const w = t ? (parseFloat(t.w) || 0) : 0;
+      if(!w) continue;
+      if(w > (best[e.name] || 0)){ marks.add(l.id + '|' + e.name); best[e.name] = w; }
+    }
+  return marks;
+}
+function sessionCard(l, prs){
   const card = h('div',{className:'card', style:{marginTop:'10px'}});
   const when = l.date ? fromDs(l.date).toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'}).toUpperCase() : '';
   card.append(h('div',{className:'log-h'},
@@ -2111,10 +2250,7 @@ function sessionCard(l){
   for(const e of (l.ex||[])){
     const t = topSet(e.sets);
     if(!t) continue;
-    /* was this the heaviest that lift has ever been, at the time? */
-    const heavier = logsFor(e.name).some(hh => hh.at < (l.finishedAt||0)
-      && hh.sets.some(x=>(parseFloat(x.w)||0) >= (parseFloat(t.w)||0)));
-    const isPr = (parseFloat(t.w)||0) > 0 && !heavier;
+    const isPr = prs ? prs.has(l.id + '|' + e.name) : false;
     card.append(h('div',{className:'log-e'},
       h('span',{}, e.name, isPr ? h('span',{className:'prtag'},'PR') : null),
     h('span',{className:'lw'}, setLabel(t))));
@@ -2754,6 +2890,9 @@ window.addEventListener('beforeinstallprompt', e=>{
   STATE.deferredInstall = e;
   showInstallBanner();
 });
+
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveSession(); });
+window.addEventListener('pagehide', saveSession);
 
 function boot(){
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
