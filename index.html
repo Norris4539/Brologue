@@ -246,6 +246,12 @@
   .log-feel{font-family:var(--small);font-size:8px;letter-spacing:1.2px;font-weight:700;
     text-transform:uppercase;color:var(--tan);margin-left:5px}
 
+  .stalebar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;
+    padding:9px 11px;border:1.5px dashed var(--red);background:var(--paper2);
+    font-family:var(--small);font-size:9.5px;font-weight:700;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--faded);cursor:pointer}
+  .stalebar .sb-a{color:var(--red);white-space:nowrap}
+
   /* an interrupted workout, offered back */
   .resume{border:2.5px solid var(--red);background:var(--paper2);padding:12px 13px;margin-top:12px}
   .resume .rs-t{font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:2.4px;
@@ -1455,7 +1461,137 @@ function streakCount(){
 }
 
 /* ── misc ui helpers ───────────────────────────────────────────────── */
+/* ── reminders ─────────────────────────────────────────────────────
+   Two halves of one loop. The calendar reaches you when the app is shut
+   but cannot know whether you trained; the badge knows exactly that but
+   cannot reach you. The calendar alert is what gets the app opened, and
+   opening the app is what refreshes the badge.
+   ─────────────────────────────────────────────────────────────────── */
+const BYDAY = ['SU','MO','TU','WE','TH','FR','SA'];
+function icsEsc(t){
+  return String(t == null ? '' : t)
+    .replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')
+    .replace(/\r?\n/g, '\\n');
+}
+/* RFC 5545 folds at 75 OCTETS, not characters, and a continuation line
+   opens with a space that counts toward the limit. Walking by code point
+   keeps an emoji or a middot from being split down the middle. */
+function icsFold(line){
+  const bytes = ch => { const c = ch.codePointAt(0);
+    return c < 0x80 ? 1 : c < 0x800 ? 2 : c < 0x10000 ? 3 : 4; };
+  const out = []; let cur = '', n = 0;
+  for(const ch of line){
+    const b = bytes(ch);
+    if(n + b > 75){ out.push(cur); cur = ' ' + ch; n = 1 + b; }
+    else { cur += ch; n += b; }
+  }
+  if(cur) out.push(cur);
+  return out.join('\r\n');
+}
+function icsDate(dateStr){ return dateStr.replace(/-/g, ''); }
+function icsStamp(){ return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); }
+function icsRule(e){
+  const r = e.recur || {freq:'none'};
+  const n = Math.max(1, r.interval || 1);
+  const until = e.until ? ';UNTIL=' + icsDate(e.until) : '';
+  if(r.freq === 'daily')   return `RRULE:FREQ=DAILY;INTERVAL=${n}${until}`;
+  if(r.freq === 'monthly') return `RRULE:FREQ=MONTHLY;INTERVAL=${n}${until}`;
+  if(r.freq === 'weekly'){
+    const days = (r.days && r.days.length) ? r.days : [fromDs(e.date).getDay()];
+    return `RRULE:FREQ=WEEKLY;INTERVAL=${n};BYDAY=${days.map(d=>BYDAY[d]).join(',')}${until}`;
+  }
+  return null;
+}
+function reminderAt(){ return store.get('bl_remind_at', '17:30'); }
+function icsTrigger(){
+  const [hh, mm] = reminderAt().split(':').map(Number);
+  return `TRIGGER:PT${hh}H${mm}M`;          // all-day events start at midnight
+}
+/* a cheap fingerprint, so the app can say when the calendar is behind */
+function scheduleHash(){
+  const src = JSON.stringify(db.schedule) + '|' + reminderAt();
+  let hsh = 5381;
+  for(let i = 0; i < src.length; i++) hsh = ((hsh * 33) ^ src.charCodeAt(i)) >>> 0;
+  return String(hsh);
+}
+function icsState(){ return store.get('bl_ics', {seq:0, hash:'', uids:[], at:''}); }
+function icsStale(){
+  const st = icsState();
+  return !!st.at && st.hash !== scheduleHash();
+}
+function buildIcs(){
+  const st = icsState();
+  const seq = st.seq + 1;
+  const uid = e => e.id + '@brologue.app';
+  const live = db.schedule;
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Brologue//Training Schedule//EN',
+             'CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:Brologue'];
+  for(const e of live){
+    const w = getWorkout(e.workoutId);
+    if(!w) continue;
+    const body = (w.ex || []).map(x=>`${x[0]} — ${x[1]} × ${x[2]}${x[3]?` @ ${x[3]}kg`:''}`).join('\n');
+    L.push('BEGIN:VEVENT',
+      'UID:' + uid(e),
+      'SEQUENCE:' + seq,
+      'DTSTAMP:' + icsStamp(),
+      'DTSTART;VALUE=DATE:' + icsDate(e.date),
+      'DTEND;VALUE=DATE:' + icsDate(ds(addDays(fromDs(e.date), 1))),
+      'SUMMARY:' + icsEsc('🏋 ' + w.name),
+      'DESCRIPTION:' + icsEsc(`${w.mins} min · ${w.focus}\n\n${body}\n\nLogged in Brologue.`),
+      'URL:' + APP_URL,
+      'TRANSP:TRANSPARENT');
+    const rule = icsRule(e);
+    if(rule) L.push(rule);
+    if(e.exceptions && e.exceptions.length)
+      L.push('EXDATE;VALUE=DATE:' + e.exceptions.map(icsDate).join(','));
+    L.push('BEGIN:VALARM', icsTrigger(), 'ACTION:DISPLAY',
+      'DESCRIPTION:' + icsEsc(w.name + ' today'), 'END:VALARM', 'END:VEVENT');
+  }
+  /* anything exported before and since deleted is withdrawn, not left to haunt */
+  const liveUids = live.map(uid);
+  for(const gone of (st.uids || []).filter(u=>!liveUids.includes(u))){
+    L.push('BEGIN:VEVENT','UID:' + gone,'SEQUENCE:' + seq,'DTSTAMP:' + icsStamp(),
+      'STATUS:CANCELLED','DTSTART;VALUE=DATE:' + icsDate(today()),
+      'SUMMARY:' + icsEsc('Brologue — cancelled'),'END:VEVENT');
+  }
+  L.push('END:VCALENDAR');
+  return {text: L.map(icsFold).join('\r\n') + '\r\n',
+          state: {seq, hash:scheduleHash(), uids:liveUids, at:today()},
+          count: live.length, cancelled: (st.uids || []).filter(u=>!liveUids.includes(u)).length};
+}
+async function exportCalendar(){
+  if(!db.schedule.length) return toast('Nothing scheduled yet');
+  const built = buildIcs();
+  const blob = new Blob([built.text], {type:'text/calendar;charset=utf-8'});
+  const file = new File([blob], 'brologue.ics', {type:'text/calendar'});
+  store.set('bl_ics', built.state);
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    try{ await navigator.share({files:[file], title:'Brologue training schedule'}); render(); return; }
+    catch(e){ /* dismissed — fall through to a download */ }
+  }
+  const url = URL.createObjectURL(blob);
+  const a = h('a',{href:url, download:'brologue.ics'});
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 3000);
+  render();
+  toast(`${built.count} workout${built.count===1?'':'s'} exported`);
+}
+
+/* ── the badge: what today still owes you ── */
+function pendingToday(){
+  return eventsForDate(today()).filter(e=>!e.done && e.workout).length;
+}
+async function updateBadge(){
+  if(!navigator.setAppBadge) return;
+  try{
+    if(!store.get('bl_badge', true)) { await navigator.clearAppBadge(); return; }
+    const n = pendingToday();
+    if(n > 0) await navigator.setAppBadge(n); else await navigator.clearAppBadge();
+  }catch(e){ /* not installed, or no permission — the badge is a bonus, never a blocker */ }
+}
+
 /* ── backup / restore — the only copy of this data lives in this browser ── */
+const APP_URL = location.origin + location.pathname;
 const BACKUP_KEYS = ['bl_schedule','bl_logs','bl_equipment','bl_custom_workouts','bl_coach_history'];
 function backupPayload(){
   const data = {};
@@ -1544,6 +1680,7 @@ function render(){
   root.append(scr);
   if(!STATE.session) root.append(TabBar());
   if(STATE.session) saveSession();
+  updateBadge();
 }
 /* the last line of defence: a screen you can still act from */
 function recoveryScreen(err){
@@ -1596,6 +1733,10 @@ function TodayScreen(){
   const dateLabel = new Date().toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric'}).toUpperCase();
 
   body.append(h('div',{className:'kick'}, dateLabel + " — TODAY'S IRON"));
+
+  if(icsStale()) body.append(h('div',{className:'stalebar', onClick:settingsSheet},
+    h('span',{},'⚠ Your calendar is out of date'),
+    h('span',{className:'sb-a'},'FIX →')));
 
   /* an interrupted workout is offered back before anything else */
   const live = resumableSession();
@@ -3178,6 +3319,42 @@ function CoachScreen(){
 }
 
 /* ── settings ──────────────────────────────────────────────────────── */
+function remindersBlock(reopen){
+  const st = icsState();
+  const times = [];
+  for(let hh = 5; hh <= 21; hh++) for(const mm of ['00','30'])
+    times.push([`${String(hh).padStart(2,'0')}:${mm}`,
+      new Date(2000,0,1,hh,+mm).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})]);
+  const timeSel = styledSelect(times, reminderAt(), v=>{ store.set('bl_remind_at', v); reopen(); });
+
+  const badgeOn = store.get('bl_badge', true);
+  const badgeChip = h('button',{className:'chip'+(badgeOn?' on':''), onClick:async e=>{
+    e.preventDefault();
+    const next = !store.get('bl_badge', true);
+    /* iOS only badges a home-screen app once notifications are allowed */
+    if(next && window.Notification && Notification.permission === 'default'){
+      try{ await Notification.requestPermission(); }catch(err){}
+    }
+    store.set('bl_badge', next);
+    badgeChip.classList.toggle('on', next);
+    updateBadge();
+  }},'Badge the icon when today is waiting');
+
+  const status = st.at
+    ? (icsStale()
+        ? `${st.count || st.uids.length} exported ${st.at} — your calendar is behind. Export again.`
+        : `${st.uids.length} workout${st.uids.length===1?'':'s'} exported ${st.at}. Up to date.`)
+    : 'Sends your schedule to your phone’s calendar, which does the reminding — '
+      + 'it works with Brologue closed and needs no account.';
+
+  return h('div',{},
+    h('button',{className:'cta ghost'+(icsStale()?'':''), onClick:exportCalendar},
+      st.at ? '🔔 UPDATE MY CALENDAR' : '🔔 ADD TO MY CALENDAR'),
+    h('div',{className:'meta', style:{marginTop:'6px'}}, status),
+    h('div',{className:'field', style:{marginTop:'12px'}}, h('label',{},'Remind me at'), timeSel),
+    h('div',{className:'chiprow', style:{marginTop:'10px'}}, badgeChip));
+}
+
 function settingsSheet(){
   const keyInp = h('input',{className:'inp', type:'password', placeholder:'sk-ant-…', value:db.apiKey});
   const eqChips = h('div',{className:'chiprow'});
@@ -3206,6 +3383,8 @@ function settingsSheet(){
         `${db.logs.length} logged session${db.logs.length===1?'':'s'} and ${db.custom.length} custom workout${db.custom.length===1?'':'s'} live only in this browser — clearing site data or changing phones wipes them. `
         + (lastBk ? `Last backup: ${lastBk}.` : 'Never backed up.')
         + ' Your API key is never written to the file.')),
+    h('div',{className:'field'}, h('label',{},'Reminders'),
+      remindersBlock(()=>{ back.remove(); settingsSheet(); })),
     h('div',{className:'field'}, h('label',{},'Anthropic API key — for the Claude coach'), keyInp,
       h('div',{className:'meta', style:{marginTop:'6px'}},'Stored only on this device. Get a key at console.anthropic.com. Without one, the coach runs in demo mode.')),
     h('button',{className:'cta', onClick:()=>{ db.apiKey = keyInp.value.trim(); back.remove(); render(); toast('Settings saved'); }},'SAVE'),
@@ -3239,8 +3418,8 @@ window.addEventListener('beforeinstallprompt', e=>{
   showInstallBanner();
 });
 
-document.addEventListener('visibilitychange', ()=>{ if(document.hidden) saveSession(); });
-window.addEventListener('pagehide', saveSession);
+document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ saveSession(); updateBadge(); } });
+window.addEventListener('pagehide', ()=>{ saveSession(); updateBadge(); });
 
 function boot(){
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
