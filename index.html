@@ -256,6 +256,14 @@
     font-family:var(--small);font-size:9.5px;font-weight:700;letter-spacing:1.2px;
     text-transform:uppercase;color:var(--faded);cursor:pointer}
   .stalebar .sb-a{color:var(--red);white-space:nowrap}
+  .gc-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px dotted var(--tan)}
+  .gc-row:last-child{border-bottom:0}
+  .gc-n{font-size:13.5px;font-weight:700}
+  .gc-m{font-family:var(--small);font-size:9px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--tan);margin-top:2px}
+  .gc-a{flex:none;font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:1.3px;
+    text-transform:uppercase;background:var(--red);color:var(--paper);text-decoration:none;
+    border:1.5px solid var(--ink);padding:6px 10px}
 
   /* an interrupted workout, offered back */
   .resume{border:2.5px solid var(--red);background:var(--paper2);padding:12px 13px;margin-top:12px}
@@ -1564,6 +1572,47 @@ function buildIcs(){
           state: {seq, hash:scheduleHash(), uids:liveUids, at:today()},
           count: live.length, cancelled: (st.uids || []).filter(u=>!liveUids.includes(u)).length};
 }
+/* Google takes a prefilled event straight from a URL - no file, no import.
+   It carries the recurrence but not the alarm: Google applies whatever
+   notification that calendar already defaults to. */
+function gcalUrl(e){
+  const w = getWorkout(e.workoutId);
+  if(!w) return null;
+  const body = (w.ex || []).map(x=>`${x[0]} — ${x[1]} × ${x[2]}${x[3]?` @ ${x[3]}kg`:''}`).join('\n');
+  const p = new URLSearchParams({
+    action:'TEMPLATE',
+    text:'🏋 ' + w.name,
+    dates: icsDate(e.date) + '/' + icsDate(ds(addDays(fromDs(e.date), 1))),
+    details: `${w.mins} min · ${w.focus}\n\n${body}\n\n${APP_URL}`,
+  });
+  const rule = icsRule(e);
+  if(rule) p.set('recur', rule);
+  return 'https://calendar.google.com/calendar/render?' + p.toString();
+}
+function gcalSheet(){
+  const live = db.schedule.filter(e=>getWorkout(e.workoutId));
+  if(!live.length) return toast('Nothing scheduled yet');
+  const card = h('div',{className:'card'});
+  live.forEach(e=>{
+    const w = getWorkout(e.workoutId);
+    card.append(h('div',{className:'gc-row'},
+      h('div',{style:{flex:'1', minWidth:'0'}},
+        h('div',{className:'gc-n'}, w.name),
+        h('div',{className:'gc-m'}, fromDs(e.date).toLocaleDateString('en-US',
+          {weekday:'short', day:'numeric', month:'short'}) + ' · ' + recurLabel(e))),
+      h('a',{className:'gc-a', href:gcalUrl(e), target:'_blank', rel:'noopener'},'ADD →')));
+  });
+  return sheet(
+    h('div',{className:'kick'},'One tap each'),
+    h('h3',{style:{marginTop:'4px'}},'Add to Google Calendar'),
+    h('div',{className:'meta', style:{margin:'6px 0 4px'}},
+      'Each one opens Google Calendar already filled in — check it and tap Save. '
+      + 'Repeats carry over; skipped dates and the reminder time above do not, because '
+      + 'Google uses that calendar’s own notification setting. Use the .ics above if you want '
+      + 'the alarm at ' + reminderAt() + '.'),
+    card);
+}
+
 async function exportCalendar(){
   if(!db.schedule.length) return toast('Nothing scheduled yet');
   const built = buildIcs();
@@ -2147,7 +2196,13 @@ function SessionScreen(){
   const nav = h('div',{className:'sess-nav'},
     h('button',{disabled:s.cur===0, onClick:()=>{ s.cur--; render(); }},'‹ PREV'),
     h('button',{className:'main', onClick:()=>{
-      if(s.cur < groups.length-1){ s.cur++; render(); }
+      if(s.cur < groups.length-1){
+        /* moving on ends the station, so the clock starts here too - not only
+           on the tick. The rest belongs to the lift you just left. */
+        const leaving = s.ex[group[group.length-1]];
+        s.cur++; render();
+        if(leaving && leaving.rest) startRest(leaving.rest);
+      }
       else finishSession(s);
     }}, s.cur < groups.length-1 ? 'NEXT ›' : 'FINISH 🏁'));
   body.append(nav);
@@ -3426,9 +3481,11 @@ function remindersBlock(reopen){
       + 'it works with Brologue closed and needs no account.';
 
   return h('div',{},
-    h('button',{className:'cta ghost'+(icsStale()?'':''), onClick:exportCalendar},
+    h('button',{className:'cta ghost', onClick:exportCalendar},
       st.at ? '🔔 UPDATE MY CALENDAR' : '🔔 ADD TO MY CALENDAR'),
     h('div',{className:'meta', style:{marginTop:'6px'}}, status),
+    h('button',{className:'cta ghost', style:{marginTop:'10px', fontSize:'13px',
+      letterSpacing:'1.4px', padding:'11px 4px'}, onClick:gcalSheet},'📅 GOOGLE CALENDAR — ONE TAP EACH'),
     h('div',{className:'field', style:{marginTop:'12px'}}, h('label',{},'Remind me at'), timeSel),
     h('div',{className:'chiprow', style:{marginTop:'10px'}}, badgeChip));
 }
