@@ -209,6 +209,11 @@
   .extag{font-family:var(--small);font-size:8.5px;letter-spacing:1.5px;font-weight:700;
     color:var(--red);text-transform:uppercase}
   .lastline{font-family:var(--serif);font-style:italic;font-size:11.5px;color:var(--faded);margin-top:6px}
+  .exhead{display:flex;align-items:flex-start;gap:9px}
+  .exhead .exname{flex:1;min-width:0}
+  .swapbtn{flex:none;width:36px;height:36px;margin-top:13px;border:1.5px solid var(--ink);
+    background:var(--paper2);font-size:16px;line-height:1;color:var(--ink)}
+
   /* supersets */
   .ss-tag{font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:2px;
     text-transform:uppercase;color:var(--red);margin-top:16px;
@@ -1987,6 +1992,43 @@ function startWorkout(w, ev){
   };
   render();
 }
+/* Adding or swapping mid-session touches the session only. A custom
+   workout is a starting point, never a live document - the template is
+   only ever rewritten from the builder. */
+function newSessionExercise(name, rest){
+  return {name, reps: isTimed(name) ? '30s' : '10',
+    rest: (rest === undefined || rest === null) ? DEFAULT_REST : rest,
+    plan:'', link:false, added:true,
+    sets: Array.from({length:3}, ()=>({done:false, weight:'', reps:''}))};
+}
+function sessionAddExercises(s, names){
+  const last = s.ex[s.ex.length-1];
+  if(last) last.link = false;              // never chain the old tail into the new lift
+  for(const n of names) s.ex.push(newSessionExercise(n));
+  saveSession(); render();
+  toast(names.length === 1 ? 'Added to the end' : names.length + ' added to the end');
+}
+function swapSessionExercise(s, idx, name){
+  const cur = s.ex[idx];
+  const kept = cur.sets.filter(x=>x.done);
+  const fresh = newSessionExercise(name, cur.rest);
+  if(kept.length){
+    /* you already lifted something here - keep it and put the new lift after */
+    cur.sets = kept;
+    fresh.link = cur.link; cur.link = false;
+    s.ex.splice(idx + 1, 0, fresh);
+    const g = sessionGroups(s.ex).findIndex(grp=>grp.includes(idx + 1));
+    if(g >= 0) s.cur = g;
+    toast(`Kept your ${kept.length} logged set${kept.length===1?'':'s'} of ${cur.name}`);
+  } else {
+    fresh.link = cur.link;
+    fresh.sets = Array.from({length:cur.sets.length || 3}, ()=>({done:false, weight:'', reps:''}));
+    s.ex[idx] = fresh;
+    toast('Swapped in ' + name);
+  }
+  saveSession(); render();
+}
+
 /* consecutive linked exercises train as one station */
 function sessionGroups(ex){
   const groups = []; let cur = [];
@@ -2036,8 +2078,14 @@ function SessionScreen(){
     if(group.length > 1) body.append(h('div',{className:'ss-tag'},
       `${String.fromCharCode(65+pos)} · superset`));
     body.append(
-      h('div',{className:'exname', onClick:()=>{ if(meta) exerciseSheet(meta); }}, ex.name),
-      h('div',{className:'extag'}, (meta?meta.muscle+' · ':'') + `target ${ex.reps}` + (ex.rest?` · rest ${ex.rest}s`:'')));
+      h('div',{className:'exhead'},
+        h('div',{className:'exname', onClick:()=>{ if(meta) exerciseSheet(meta); }}, ex.name),
+        h('button',{className:'swapbtn', title:'Swap this exercise', onClick:()=>exercisePicker(
+          picks=>swapSessionExercise(s, gi, picks[0].name),
+          {single:true, title:'Swap in something else',
+           empty:'PICK ONE', verb:'⇄ SWAP IT IN'})},'⇄')),
+      h('div',{className:'extag'}, (meta?meta.muscle+' · ':'') + `target ${ex.reps}`
+        + (ex.rest?` · rest ${ex.rest}s`:'') + (ex.added?' · added':'')));
     if(prev) body.append(h('div',{className:'lastline'},
       `Last time · ${prev.sets.map(setLabel).join(', ')}`));
     const target = overloadTarget(ex.name, ex.reps);
@@ -2108,6 +2156,11 @@ function SessionScreen(){
     className:'dot'+(i===s.cur?' on':(g.every(j=>s.ex[j].sets.every(x=>x.done))?' done':'')),
     onClick:()=>{ s.cur=i; render(); }})));
   body.append(dots);
+  body.append(h('button',{className:'cta ghost', style:{marginTop:'12px', fontSize:'12px',
+    letterSpacing:'1.5px', padding:'10px'},
+    onClick:()=>exercisePicker(picks=>sessionAddExercises(s, picks.map(x=>x.name)),
+      {title:'Add to this session'})},'＋ ADD AN EXERCISE'));
+  body.append(h('div',{className:'hintline'},'Anything you add or swap stays in this session — your saved workout is untouched.'));
   wrap.append(body);
   return wrap;
 }
@@ -2867,7 +2920,8 @@ function oneRmChart(name){
       h('span',{}, `${lastP.v} kg · ${fmtDay(lastP.date)}`)));
 }
 
-function exercisePicker(onPick){
+function exercisePicker(onPick, opts){
+  opts = opts || {};
   let muscle='all', q='';
   const chosen = new Set();
   const have = myGear();
@@ -2883,8 +2937,15 @@ function exercisePicker(onPick){
       if(muscle!=='all' && ex.muscle!==muscle) continue;
       if(ql && !ex.name.toLowerCase().includes(ql)) continue;
       const row = h('div',{className:'pick-item'+(chosen.has(ex.name)?' sel':''), onClick:()=>{
-        chosen.has(ex.name) ? chosen.delete(ex.name) : chosen.add(ex.name);
-        row.classList.toggle('sel');
+        if(opts.single){                       /* swapping in one lift, not building a list */
+          const was = chosen.has(ex.name);
+          chosen.clear();
+          if(!was) chosen.add(ex.name);
+          refresh();
+        } else {
+          chosen.has(ex.name) ? chosen.delete(ex.name) : chosen.add(ex.name);
+          row.classList.toggle('sel');
+        }
         syncBtn();
       }},
         h('span',{className:'pbox'},'✓'),
@@ -2913,12 +2974,12 @@ function exercisePicker(onPick){
     onPick(picks);
   }},'＋ ADD');
   const syncBtn = ()=>{
-    addBtn.textContent = chosen.size
-      ? `＋ ADD ${chosen.size} EXERCISE${chosen.size===1?'':'S'}`
-      : 'PICK SOME EXERCISES';
+    addBtn.textContent = !chosen.size ? (opts.empty || 'PICK SOME EXERCISES')
+      : opts.single ? (opts.verb || '⇄ SWAP IT IN')
+      : `＋ ADD ${chosen.size} EXERCISE${chosen.size===1?'':'S'}`;
     addBtn.style.opacity = chosen.size ? '1' : '.45';
   };
-  const back = sheet(h('h3',{},'Pick exercises'),
+  const back = sheet(h('h3',{}, opts.title || 'Pick exercises'),
     h('div',{className:'meta', style:{margin:'6px 0 10px'}},
       pool.length+' of '+EXERCISES.length+' moves fit your equipment · tap to select'),
     h('div',{className:'field'}, search), chips, list, addBtn);
