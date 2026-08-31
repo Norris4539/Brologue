@@ -663,20 +663,20 @@ const EXERCISES = [
   ['Leg Curl','legs',['machine'],'Nordic Curl'],
   ['Romanian Deadlift','legs',['barbell','dumbbell'],'Single-Leg Hip Hinge'],
   ['Conventional Deadlift','back',['barbell'],'Hip Hinge Hold'],
-  ['Hip Thrust','legs',['barbell','bench'],'Single-Leg Glute Bridge'],
+  ['Hip Thrust','legs',[['barbell'],['bench']],'Single-Leg Glute Bridge'],
   ['Glute Bridge','legs',[],null],
   ['Calf Raise','legs',[],null],
   ['Wall Sit','legs',[],null,1],
   ['Step-Up','legs',['bench'],null],
   ['Nordic Curl','legs',[],null],
-  ['Barbell Bench Press','chest',['barbell','bench'],'Push-Up'],
-  ['Dumbbell Bench Press','chest',['dumbbell','bench'],'Push-Up'],
-  ['Incline DB Press','chest',['dumbbell','bench'],'Decline Push-Up'],
+  ['Barbell Bench Press','chest',[['barbell'],['bench']],'Push-Up'],
+  ['Dumbbell Bench Press','chest',[['dumbbell'],['bench']],'Push-Up'],
+  ['Incline DB Press','chest',[['dumbbell'],['bench']],'Decline Push-Up'],
   ['Push-Up','chest',[],null],
   ['Decline Push-Up','chest',[],null],
   ['Diamond Push-Up','chest',[],null],
   ['Cable Fly','chest',['cables'],'Wide Push-Up'],
-  ['Dumbbell Fly','chest',['dumbbell','bench'],'Wide Push-Up'],
+  ['Dumbbell Fly','chest',[['dumbbell'],['bench']],'Wide Push-Up'],
   ['Chest Dip','chest',['dip bar'],'Decline Push-Up'],
   ['Machine Chest Press','chest',['machine'],'Push-Up'],
   ['Overhead Press','shoulders',['barbell'],'Pike Push-Up'],
@@ -706,12 +706,12 @@ const EXERCISES = [
   ['Hammer Curl','arms',['dumbbell'],'Backpack Curl'],
   ['Cable Curl','arms',['cables'],'Band Curl'],
   ['Band Curl','arms',['bands'],null],
-  ['Preacher Curl','arms',['barbell','bench'],null],
+  ['Preacher Curl','arms',[['barbell'],['bench']],null],
   ['Triceps Pushdown','arms',['cables','bands'],'Diamond Push-Up'],
-  ['Skull Crusher','arms',['barbell','bench'],'Diamond Push-Up'],
+  ['Skull Crusher','arms',[['barbell'],['bench']],'Diamond Push-Up'],
   ['Overhead Triceps Extension','arms',['dumbbell','cables'],'Diamond Push-Up'],
   ['Bench Dip','arms',['bench'],null],
-  ['Close-Grip Bench Press','arms',['barbell','bench'],'Diamond Push-Up'],
+  ['Close-Grip Bench Press','arms',[['barbell'],['bench']],'Diamond Push-Up'],
   ['Kettlebell Swing','full',['kettlebell'],'Jump Squat'],
   ['Clean & Press','full',['barbell','dumbbell','kettlebell'],'Burpee'],
   ['Thruster','full',['barbell','dumbbell'],'Jump Squat'],
@@ -743,15 +743,15 @@ const EXERCISES = [
   ['Incline Push-Up','chest',[],null],
   ['Wide Push-Up','chest',[],null],
   ['Archer Push-Up','chest',[],null],
-  ['Incline Barbell Bench Press','chest',['barbell','bench'],'Decline Push-Up'],
-  ['Decline Barbell Bench Press','chest',['barbell','bench'],'Incline Push-Up'],
+  ['Incline Barbell Bench Press','chest',[['barbell'],['bench']],'Decline Push-Up'],
+  ['Decline Barbell Bench Press','chest',[['barbell'],['bench']],'Incline Push-Up'],
   ['Reverse Snow Angel','shoulders',[],null],
   ['Doorframe Row','back',[],null],
   ['Backpack Curl','arms',[],null],
   ['Plank Walk-Out','core',[],null],
   ['Low-Bar Back Squat','legs',['barbell'],'Air Squat'],
   ['High-Bar Back Squat','legs',['barbell'],'Air Squat'],
-  ['Box Squat','legs',['barbell','box'],'Air Squat'],
+  ['Box Squat','legs',[['barbell'],['box']],'Air Squat'],
   ['Pause Squat','legs',['barbell'],'Wall Sit'],
   ['Zercher Squat','legs',['barbell'],'Goblet Squat'],
   ['Anderson Squat','legs',['barbell'],'Air Squat'],
@@ -769,7 +769,7 @@ const EXERCISES = [
   ['Dumbbell Walking Lunge','legs',['dumbbell'],'Walking Lunge'],
   ['Barbell Lunge','legs',['barbell'],'Walking Lunge'],
   ['Trap Bar Deadlift','legs',['trap bar'],'Single-Leg Hip Hinge'],
-  ['Deficit Deadlift','legs',['barbell','plate'],'Single-Leg Hip Hinge'],
+  ['Deficit Deadlift','legs',[['barbell'],['plate']],'Single-Leg Hip Hinge'],
   ['Stiff-Leg Deadlift','legs',['barbell','dumbbell'],'Single-Leg Hip Hinge'],
   ['Single-Leg Romanian Deadlift','legs',['dumbbell','kettlebell'],'Single-Leg Hip Hinge'],
   ['Kettlebell Deadlift','legs',['kettlebell'],'Single-Leg Hip Hinge'],
@@ -778,8 +778,8 @@ const EXERCISES = [
   ['Seated Leg Curl','legs',['machine'],'Nordic Curl'],
   ['Sliding Leg Curl','legs',[],null],
   ['Reverse Hyperextension','legs',['machine','bench'],'Glute Bridge'],
-  ['Barbell Hip Thrust','legs',['barbell','bench'],'Single-Leg Glute Bridge'],
-  ['B-Stance Hip Thrust','legs',['dumbbell','bench'],'Single-Leg Glute Bridge'],
+  ['Barbell Hip Thrust','legs',[['barbell'],['bench']],'Single-Leg Glute Bridge'],
+  ['B-Stance Hip Thrust','legs',[['dumbbell'],['bench']],'Single-Leg Glute Bridge'],
   ['Frog Pump','legs',[],null],
   ['Cable Glute Kickback','legs',['cables','bands'],'Single-Leg Glute Bridge'],
   ['Donkey Kick','legs',[],null],
@@ -801,7 +801,7 @@ const EXERCISES = [
   ['Step-Up Jump','legs',['box'],'Jump Squat'],
   ['Wide-Grip Pull-Up','back',['pull-up bar'],'Doorframe Row'],
   ['Neutral-Grip Pull-Up','back',['pull-up bar'],'Doorframe Row'],
-  ['Weighted Pull-Up','back',['pull-up bar','plate'],'Doorframe Row'],
+  ['Weighted Pull-Up','back',[['pull-up bar'],['plate']],'Doorframe Row'],
   ['Assisted Pull-Up','back',['machine','bands'],'Doorframe Row'],
   ['Commando Pull-Up','back',['pull-up bar'],'Doorframe Row'],
   ['Australian Pull-Up','back',['suspension trainer','bands'],'Inverted Row'],
@@ -810,8 +810,8 @@ const EXERCISES = [
   ['Straight-Arm Pulldown','back',['cables','bands'],'Superman Hold'],
   ['Pendlay Row','back',['barbell'],'Inverted Row'],
   ['Yates Row','back',['barbell'],'Inverted Row'],
-  ['Chest-Supported Row','back',['dumbbell','bench','machine'],'Inverted Row'],
-  ['Seal Row','back',['barbell','bench'],'Inverted Row'],
+  ['Chest-Supported Row','back',[['dumbbell','machine'],['bench','machine']],'Inverted Row'],
+  ['Seal Row','back',[['barbell'],['bench']],'Inverted Row'],
   ['Meadows Row','back',['landmine'],'Inverted Row'],
   ['Landmine Row','back',['landmine'],'Inverted Row'],
   ['Single-Arm Dumbbell Row','back',['dumbbell'],'Doorframe Row'],
@@ -836,23 +836,23 @@ const EXERCISES = [
   ['Good Morning (Dumbbell)','back',['dumbbell'],'Hip Hinge Hold'],
   ['Jefferson Curl','back',['dumbbell','kettlebell'],'Hip Hinge Hold'],
   ['Bent-Over Reverse Fly','shoulders',['dumbbell'],'Reverse Snow Angel'],
-  ['Pause Bench Press','chest',['barbell','bench'],'Push-Up'],
-  ['Wide-Grip Bench Press','chest',['barbell','bench'],'Wide Push-Up'],
-  ['Board Press','chest',['barbell','bench'],'Push-Up'],
+  ['Pause Bench Press','chest',[['barbell'],['bench']],'Push-Up'],
+  ['Wide-Grip Bench Press','chest',[['barbell'],['bench']],'Wide Push-Up'],
+  ['Board Press','chest',[['barbell'],['bench']],'Push-Up'],
   ['Floor Press','chest',['barbell','dumbbell'],'Push-Up'],
-  ['Smith Machine Bench Press','chest',['smith machine','bench'],'Push-Up'],
-  ['Decline DB Press','chest',['dumbbell','bench'],'Decline Push-Up'],
-  ['Neutral-Grip DB Press','chest',['dumbbell','bench'],'Push-Up'],
-  ['Squeeze Press','chest',['dumbbell','bench'],'Diamond Push-Up'],
+  ['Smith Machine Bench Press','chest',[['smith machine'],['bench']],'Push-Up'],
+  ['Decline DB Press','chest',[['dumbbell'],['bench']],'Decline Push-Up'],
+  ['Neutral-Grip DB Press','chest',[['dumbbell'],['bench']],'Push-Up'],
+  ['Squeeze Press','chest',[['dumbbell'],['bench']],'Diamond Push-Up'],
   ['Svend Press','chest',['plate'],'Diamond Push-Up'],
   ['Incline Cable Fly','chest',['cables'],'Incline Push-Up'],
   ['Low-to-High Cable Fly','chest',['cables','bands'],'Wide Push-Up'],
   ['High-to-Low Cable Fly','chest',['cables','bands'],'Decline Push-Up'],
   ['Pec Deck','chest',['machine'],'Wide Push-Up'],
-  ['Incline Dumbbell Fly','chest',['dumbbell','bench'],'Wide Push-Up'],
+  ['Incline Dumbbell Fly','chest',[['dumbbell'],['bench']],'Wide Push-Up'],
   ['Bar Dip','chest',['dip bar'],'Decline Push-Up'],
   ['Ring Dip','chest',['suspension trainer'],'Decline Push-Up'],
-  ['Weighted Dip','chest',['dip bar','plate'],'Decline Push-Up'],
+  ['Weighted Dip','chest',[['dip bar'],['plate']],'Decline Push-Up'],
   ['Pseudo Planche Push-Up','chest',[],null],
   ['Clap Push-Up','chest',[],null],
   ['Deficit Push-Up','chest',['dumbbell','box'],'Push-Up'],
@@ -865,7 +865,7 @@ const EXERCISES = [
   ['Landmine Press','chest',['landmine'],'Push-Up'],
   ['Push-Up Plus','chest',[],null],
   ['Isometric Push-Up Hold','chest',[],null,1],
-  ['Seated Overhead Press','shoulders',['barbell','bench'],'Pike Push-Up'],
+  ['Seated Overhead Press','shoulders',[['barbell'],['bench']],'Pike Push-Up'],
   ['Push Press','shoulders',['barbell','dumbbell'],'Pike Push-Up'],
   ['Behind-the-Neck Press','shoulders',['barbell'],'Pike Push-Up'],
   ['Smith Machine Shoulder Press','shoulders',['smith machine'],'Pike Push-Up'],
@@ -876,7 +876,7 @@ const EXERCISES = [
   ['Bottoms-Up Press','shoulders',['kettlebell'],'Pike Push-Up'],
   ['Cable Lateral Raise','shoulders',['cables','bands'],'Reverse Snow Angel'],
   ['Leaning Lateral Raise','shoulders',['dumbbell'],'Reverse Snow Angel'],
-  ['Incline Lateral Raise','shoulders',['dumbbell','bench'],'Reverse Snow Angel'],
+  ['Incline Lateral Raise','shoulders',[['dumbbell'],['bench']],'Reverse Snow Angel'],
   ['Machine Lateral Raise','shoulders',['machine'],'Reverse Snow Angel'],
   ['Plate Front Raise','shoulders',['plate'],'Pike Push-Up'],
   ['Cable Front Raise','shoulders',['cables','bands'],'Pike Push-Up'],
@@ -889,14 +889,14 @@ const EXERCISES = [
   ['Wall Walk','shoulders',[],null],
   ['Wall-Supported Handstand Push-Up','shoulders',[],null],
   ['Elevated Pike Push-Up','shoulders',['box','bench'],'Pike Push-Up'],
-  ['Arnold Press (Seated)','shoulders',['dumbbell','bench'],'Pike Push-Up'],
+  ['Arnold Press (Seated)','shoulders',[['dumbbell'],['bench']],'Pike Push-Up'],
   ['Halo','shoulders',['kettlebell','plate'],'Reverse Snow Angel'],
   ['Overhead Plate Hold','shoulders',['plate'],'Handstand Hold',1],
   ['Cuban Press','shoulders',['dumbbell'],'Reverse Snow Angel'],
   ['EZ Bar Curl','arms',['ez bar'],'Backpack Curl'],
-  ['Incline Dumbbell Curl','arms',['dumbbell','bench'],'Backpack Curl'],
+  ['Incline Dumbbell Curl','arms',[['dumbbell'],['bench']],'Backpack Curl'],
   ['Concentration Curl','arms',['dumbbell'],'Backpack Curl'],
-  ['Spider Curl','arms',['dumbbell','bench'],'Backpack Curl'],
+  ['Spider Curl','arms',[['dumbbell'],['bench']],'Backpack Curl'],
   ['Bayesian Cable Curl','arms',['cables'],'Backpack Curl'],
   ['Drag Curl','arms',['barbell','ez bar'],'Backpack Curl'],
   ['21s Curl','arms',['barbell','ez bar'],'Backpack Curl'],
@@ -907,10 +907,10 @@ const EXERCISES = [
   ['Rope Triceps Pushdown','arms',['cables'],'Diamond Push-Up'],
   ['Straight-Bar Pushdown','arms',['cables'],'Diamond Push-Up'],
   ['Overhead Rope Extension','arms',['cables'],'Diamond Push-Up'],
-  ['EZ Bar Skull Crusher','arms',['ez bar','bench'],'Diamond Push-Up'],
-  ['JM Press','arms',['barbell','bench'],'Diamond Push-Up'],
+  ['EZ Bar Skull Crusher','arms',[['ez bar'],['bench']],'Diamond Push-Up'],
+  ['JM Press','arms',[['barbell'],['bench']],'Diamond Push-Up'],
   ['Dumbbell Kickback','arms',['dumbbell'],'Diamond Push-Up'],
-  ['Tate Press','arms',['dumbbell','bench'],'Diamond Push-Up'],
+  ['Tate Press','arms',[['dumbbell'],['bench']],'Diamond Push-Up'],
   ['Machine Triceps Extension','arms',['machine'],'Diamond Push-Up'],
   ['Band Pushdown','arms',['bands'],'Diamond Push-Up'],
   ['Ring Triceps Extension','arms',['suspension trainer'],'Diamond Push-Up'],
@@ -1007,7 +1007,7 @@ const EXERCISES = [
   ['Overhead Carry','full',['dumbbell','kettlebell','plate'],'Bear Crawl',1],
   ['Front-Rack Carry','full',['kettlebell','dumbbell'],'Bear Crawl',1],
   ['Sandbag Clean','full',['medicine ball','sled'],'Jump Squat'],
-  ['Dumbbell Pullover','back',['dumbbell','bench'],'Superman Hold'],
+  ['Dumbbell Pullover','back',[['dumbbell'],['bench']],'Superman Hold'],
   ['Cable Pullover','back',['cables','bands'],'Superman Hold'],
   ['Single-Arm Lat Pulldown','back',['cables','machine'],'Doorframe Row'],
   ['Gorilla Row','back',['kettlebell','dumbbell'],'Inverted Row'],
@@ -1020,22 +1020,22 @@ const EXERCISES = [
   ['Archer Pull-Up','back',['pull-up bar'],'Doorframe Row'],
   ['Mixed-Grip Pull-Up','back',['pull-up bar'],'Doorframe Row'],
   ['Towel Pull-Up','back',['pull-up bar'],'Doorframe Row'],
-  ['Barbell Pullover','back',['barbell','bench'],'Superman Hold'],
+  ['Barbell Pullover','back',[['barbell'],['bench']],'Superman Hold'],
   ['Smith Machine Row','back',['smith machine'],'Inverted Row'],
   ['Cable Shrug','back',['cables'],'Superman Hold'],
-  ['Deficit Rack Pull','back',['barbell','plate'],'Hip Hinge Hold'],
+  ['Deficit Rack Pull','back',[['barbell'],['plate']],'Hip Hinge Hold'],
   ['Glute-Ham Raise','legs',['machine','bench'],'Nordic Curl'],
   ['Hip Abduction','legs',['machine','bands'],'Clamshell'],
   ['Hip Adduction','legs',['machine','bands'],'Cossack Squat'],
   ['Leg Press Calf Raise','legs',['machine'],'Calf Raise'],
   ['Reverse Nordic Curl','legs',[],null],
   ['Front-Foot-Elevated Split Squat','legs',['box','plate'],'Split Squat'],
-  ['Heel-Elevated Goblet Squat','legs',['dumbbell','plate'],'Air Squat'],
+  ['Heel-Elevated Goblet Squat','legs',[['dumbbell'],['plate']],'Air Squat'],
   ['Jefferson Squat','legs',['barbell'],'Cossack Squat'],
   ['Smith Machine Lunge','legs',['smith machine'],'Walking Lunge'],
   ['Landmine Hack Squat','legs',['landmine'],'Air Squat'],
   ['Kettlebell Front Squat','legs',['kettlebell'],'Air Squat'],
-  ['Dumbbell Step-Up','legs',['dumbbell','box','bench'],'Step-Up'],
+  ['Dumbbell Step-Up','legs',[['dumbbell'],['box','bench']],'Step-Up'],
   ['Lateral Step-Up','legs',['box','bench'],'Step-Up'],
   ['Sissy Squat Hold','legs',[],null,1],
   ['Wall-Facing Squat','legs',[],null],
@@ -1046,18 +1046,18 @@ const EXERCISES = [
   ['Duck Walk','legs',[],null,1],
   ['Wall Ball Squat','legs',['medicine ball'],'Air Squat'],
   ['Cable Crossover','chest',['cables'],'Wide Push-Up'],
-  ['Guillotine Press','chest',['barbell','bench'],'Wide Push-Up'],
-  ['Reverse-Grip Bench Press','chest',['barbell','bench'],'Push-Up'],
+  ['Guillotine Press','chest',[['barbell'],['bench']],'Wide Push-Up'],
+  ['Reverse-Grip Bench Press','chest',[['barbell'],['bench']],'Push-Up'],
   ['Banded Push-Up','chest',['bands'],'Push-Up'],
   ['Feet-Elevated Push-Up','chest',['box','bench'],'Decline Push-Up'],
   ['One-Arm Push-Up','chest',[],null],
   ['Hindu Push-Up','chest',[],null],
   ['Typewriter Push-Up','chest',[],null],
-  ['Stability Ball Dumbbell Press','chest',['stability ball','dumbbell'],'Push-Up'],
+  ['Stability Ball Dumbbell Press','chest',[['dumbbell'],['stability ball']],'Push-Up'],
   ['Machine Incline Press','chest',['machine'],'Incline Push-Up'],
   ['Plate Press-Out','chest',['plate'],'Diamond Push-Up'],
   ['Rear Delt Row','shoulders',['dumbbell','cables','bands'],'Reverse Snow Angel'],
-  ['Powell Raise','shoulders',['dumbbell','bench'],'Reverse Snow Angel'],
+  ['Powell Raise','shoulders',[['dumbbell'],['bench']],'Reverse Snow Angel'],
   ['Scott Press','shoulders',['dumbbell'],'Pike Push-Up'],
   ['Tuck Planche Hold','shoulders',[],null,1],
   ['Handstand Walk','shoulders',[],null,1],
@@ -1065,20 +1065,20 @@ const EXERCISES = [
   ['Bradford Press','shoulders',['barbell'],'Pike Push-Up'],
   ['Viking Press','shoulders',['landmine','machine'],'Pike Push-Up'],
   ['Banded Lateral Raise','shoulders',['bands'],'Reverse Snow Angel'],
-  ['Prone Incline Rear Delt Raise','shoulders',['dumbbell','bench'],'Reverse Snow Angel'],
+  ['Prone Incline Rear Delt Raise','shoulders',[['dumbbell'],['bench']],'Reverse Snow Angel'],
   ['Cable External Rotation','shoulders',['cables','bands'],'Reverse Snow Angel'],
   ['Dumbbell External Rotation','shoulders',['dumbbell'],'Reverse Snow Angel'],
   ['Rope Hammer Curl','arms',['cables'],'Backpack Curl'],
   ['Crossbody Hammer Curl','arms',['dumbbell'],'Backpack Curl'],
   ['Waiter Curl','arms',['dumbbell','plate'],'Backpack Curl'],
   ['Cable Rope Curl','arms',['cables'],'Backpack Curl'],
-  ['EZ Bar Preacher Curl','arms',['ez bar','bench'],'Backpack Curl'],
-  ['Incline Cable Curl','arms',['cables','bench'],'Backpack Curl'],
+  ['EZ Bar Preacher Curl','arms',[['ez bar'],['bench']],'Backpack Curl'],
+  ['Incline Cable Curl','arms',[['cables'],['bench']],'Backpack Curl'],
   ['Kettlebell Curl','arms',['kettlebell'],'Backpack Curl'],
   ['Single-Arm Cable Pushdown','arms',['cables'],'Diamond Push-Up'],
   ['Cable Overhead Extension','arms',['cables'],'Diamond Push-Up'],
-  ['Dumbbell Skull Crusher','arms',['dumbbell','bench'],'Diamond Push-Up'],
-  ['Kettlebell Skull Crusher','arms',['kettlebell','bench'],'Diamond Push-Up'],
+  ['Dumbbell Skull Crusher','arms',[['dumbbell'],['bench']],'Diamond Push-Up'],
+  ['Kettlebell Skull Crusher','arms',[['kettlebell'],['bench']],'Diamond Push-Up'],
   ['Bodyweight Triceps Extension','arms',[],null],
   ['Reverse-Grip Pushdown','arms',['cables'],'Diamond Push-Up'],
   ['Behind-the-Back Wrist Curl','arms',['barbell','dumbbell'],'Plate Pinch Hold'],
@@ -2726,9 +2726,26 @@ function planSheet(p){
    either doable outright or has a substitute chain you can do — the
    same 'try instead' data the Library shows. */
 function myGear(){ return new Set(db.equipment); }
+/* Equipment is a list of GROUPS: every group must be satisfied, and any
+   member of a group will do. A flat list is shorthand for one group, so
+   ['barbell','dumbbell'] still reads "either", while [['ez bar'],['bench']]
+   reads "both" - which a flat list could never say. */
+function equipGroups(ex){
+  const e = (ex && ex.equip) || [];
+  if(!e.length) return [];
+  return Array.isArray(e[0]) ? e : [e];
+}
+function equipFlat(ex){ return equipGroups(ex).flat(); }
+function equipLabel(ex){
+  const g = equipGroups(ex);
+  if(!g.length) return 'bodyweight';
+  if(g.length === 1) return g[0].join(' / ');                    // "barbell / dumbbell" - either
+  return g.map(grp=>grp.length > 1 ? '(' + grp.join(' / ') + ')' : grp[0]).join(' + ');
+}                                                                // "ez bar + bench", "dumbbell + (box / bench)" 
 function canDoExercise(ex, have){
   if(!ex) return false;
-  return ex.equip.length === 0 || ex.equip.some(q=>have.has(q));
+  const g = equipGroups(ex);
+  return g.length === 0 || g.every(grp=>grp.some(q=>have.has(q)));
 }
 function canDoNamed(name, have, depth){
   const ex = EXERCISES.find(e=>e.name===name);
@@ -2749,7 +2766,7 @@ function lookupWorkout(id){ return WORKOUTS[id] || db.custom.find(c=>c.id===id) 
 
 function isWeighted(exName){
   const ex = EXERCISES.find(e=>e.name===exName);
-  return !!(ex && ex.equip.some(q=>['barbell','ez bar','trap bar','dumbbell','kettlebell','plate',
+  return !!(ex && equipFlat(ex).some(q=>['barbell','ez bar','trap bar','dumbbell','kettlebell','plate',
     'machine','smith machine','cables','landmine','medicine ball','sled'].includes(q)));
 }
 function isTimed(exName){
@@ -2873,7 +2890,7 @@ function exercisePicker(onPick){
         h('span',{className:'pbox'},'✓'),
         h('div',{style:{flex:'1'}},
           h('div',{className:'pn'}, ex.name),
-          h('div',{className:'pe'}, (ex.equip.length?ex.equip.join(' / '):'bodyweight') + (ex.timed?' · timed':''))),
+          h('div',{className:'pe'}, equipLabel(ex) + (ex.timed?' · timed':''))),
         h('span',{className:'pm'}, ex.muscle));
       list.append(row);
       shown++;
@@ -3004,11 +3021,11 @@ function exerciseSheet(ex){
   const hs = logsFor(ex.name), best = bestFor(ex.name), last = hs[0];
   const have = myGear(), ok = canDoExercise(ex, have);
   const back = sheet(
-    h('div',{className:'kick'}, ex.muscle + ' · ' + (ex.equip.length ? ex.equip.join(' / ') : 'bodyweight')),
+    h('div',{className:'kick'}, ex.muscle + ' · ' + equipLabel(ex)),
     h('h3',{style:{marginTop:'4px'}}, ex.name),
     h('div',{className:'specs'},
       h('div',{className:'spec'}, h('div',{className:'k'},'Equipment'),
-        h('div',{className:'v'}, ex.equip.length ? ex.equip.join(' / ') : 'bodyweight')),
+        h('div',{className:'v'}, equipLabel(ex))),
       h('div',{className:'spec'}, h('div',{className:'k'},'Target'), h('div',{className:'v'}, ex.muscle)),
       h('div',{className:'spec'}, h('div',{className:'k'},'Logged as'), h('div',{className:'v'}, ex.timed ? 'Timed' : 'Reps'))),
     (!ok && ex.sub) ? h('div',{className:'swapbox'},
@@ -3091,12 +3108,12 @@ function buildExercises(body){
         : db.equipment.length<=3 ? db.equipment.join(', ')
         : db.equipment.length+' types'))));
   const have = new Set(db.equipment);
-  const canDo = ex => ex.equip.length===0 || ex.equip.some(q=>have.has(q));
+  const canDo = ex => canDoExercise(ex, have);
   const ql = LIB.q.trim().toLowerCase();
   let list = EXERCISES.filter(ex=>LIB.muscle==='all'||ex.muscle===LIB.muscle);
   if(ql) list = list.filter(ex=>ex.name.toLowerCase().includes(ql)
-    || ex.equip.some(q=>q.includes(ql))
-    || (!ex.equip.length && 'bodyweight'.includes(ql)));
+    || equipFlat(ex).some(q=>q.includes(ql))
+    || (!equipFlat(ex).length && 'bodyweight'.includes(ql)));
   const card = h('div',{className:'card'});
   let shown = 0, lastMuscle = null;
   const heads = LIB.muscle === 'all';   // one chip active = one group, heading is noise
@@ -3110,7 +3127,7 @@ function buildExercises(body){
     card.append(h('div',{className:'ex-item'+(ok?'':' blocked'), onClick:()=>exerciseSheet(ex)},
       h('div',{},
         h('div',{className:'en'},ex.name),
-        h('div',{className:'eq'}, ex.equip.length ? ex.equip.join(' / ') : 'bodyweight'),
+        h('div',{className:'eq'}, equipLabel(ex)),
         (!ok && ex.sub) ? h('div',{className:'sub'},'↳ try instead: '+ex.sub) : null),
       h('span',{className:'mus'},ex.muscle)));
     shown++;
