@@ -246,6 +246,13 @@
   .plate:last-child{border-bottom:0}
   .plate .pw{font-family:var(--wood);font-size:22px;letter-spacing:.5px}
   .plate .pc{font-family:var(--small);font-size:11px;font-weight:700;letter-spacing:1.2px;color:var(--faded)}
+  .plate .pq{display:flex;align-items:center;gap:9px}
+  .plate .stp input{width:44px}
+  .pt-box{display:flex;justify-content:space-between;align-items:center;margin-top:14px;
+    padding:11px 13px;border:2.5px solid var(--ink);background:var(--paper2)}
+  .pt-box .pt-k{font-family:var(--small);font-size:9.5px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--faded)}
+  .pt-box .pt-v{font-family:var(--wood);font-size:32px;line-height:1;letter-spacing:.5px;color:var(--red)}
   .log-note{font-family:var(--serif);font-style:italic;font-size:12px;color:var(--faded);
     margin-top:8px;padding-top:7px;border-top:1px dotted var(--tan)}
   .log-feel{font-family:var(--small);font-size:8px;letter-spacing:1.2px;font-weight:700;
@@ -2174,7 +2181,9 @@ function SessionScreen(){
         h('button',{className:'cta ghost', style:{flex:1, marginTop:0, padding:'9px', fontSize:'10px'},
           /* seed from the working weight, not set 1 - set 1 is often a warm-up */
           onClick:()=>plateSheet(target ? target.weight
-            : Math.max(0, ...ex.sets.filter(x=>!x.warm).map(x=>parseFloat(x.weight)||0)))},'⚖ PLATES')));
+            : Math.max(0, ...ex.sets.filter(x=>!x.warm).map(x=>parseFloat(x.weight)||0)),
+            w=>{ ex.sets.forEach(st=>{ if(!st.done) st.weight = String(w); });
+                 saveSession(); render(); toast(`Sets set to ${w} kg`); })},'⚖ PLATES')));
       if(pos === 0 && !store.get('bl_warm_seen', false))
         card.append(h('div',{className:'hintline'},'Tap a set number to mark it a warm-up.'));
     };
@@ -2615,8 +2624,9 @@ function issueSheet(ym){
       h('span',{}, `Vol. ${m.vol} · No. ${m.no}`),
       h('span',{className:'r'}, m.partial ? 'Proof copy' : `The ${m.month} issue`),
       h('span',{},'25¢')),
-    m.partial ? h('div',{className:'iss-proof'},
-      `Goes to press on the 1st — ${m.sessions} session${m.sessions===1?'':'s'} in so far.`) : null,
+    /* Element.append stringifies null, unlike h() - so this branch is its own call */
+    h('div',{}, m.partial ? h('div',{className:'iss-proof'},
+      `Goes to press on the 1st — ${m.sessions} session${m.sessions===1?'':'s'} in so far.`) : null),
     h('div',{className:'iss-kick'}, c.kicker),
     h('div',{className:'iss-head'}, c.headline),
     h('div',{className:'iss-deck'}, c.deck),
@@ -2884,53 +2894,115 @@ function isTimed(exName){
 /* what to hang on each end of the bar */
 const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
 function plateBreakdown(total, bar){
-  let each = (total - bar) / 2;
+  const each = (total - bar) / 2;
   if(each < 0) return null;
-  const out = [];
-  for(const p of PLATES){
-    const n = Math.floor((each + 1e-9) / p);
-    if(n > 0){ out.push([p, n]); each = Math.round((each - n * p) * 100) / 100; }
-  }
-  return {plates:out, left:Math.round(each * 100) / 100};
-}
-function plateSheet(startWeight){
-  let bar = store.get('bl_bar', 20);
-  let total = parseFloat(startWeight) || bar;
-  const list = h('div',{className:'card', style:{marginTop:'10px'}});
-  const wFld = numField({min:0, step:2.5, wide:true, attrs:{inputmode:'decimal', value:String(total)}});
-  const barRow = h('div',{className:'chiprow'});
-  const draw = ()=>{
-    list.innerHTML = '';
-    const b = plateBreakdown(total, bar);
-    if(!b){
-      list.append(h('div',{className:'empty'},`That is lighter than the ${bar} kg bar.`));
-    } else if(!b.plates.length){
-      list.append(h('div',{className:'empty'},'Just the bar.'));
-    } else {
-      b.plates.forEach(([p,n])=>list.append(h('div',{className:'plate'},
-        h('span',{className:'pw'}, p + ' kg'),
-        h('span',{className:'pc'}, '× ' + n + ' a side'))));
-      if(b.left > 0) list.append(h('div',{className:'plate'},
-        h('span',{className:'pc'},'Cannot make the last'),
-        h('span',{className:'pc'}, b.left * 2 + ' kg')));
+  /* Plain greedy makes 40 a side out of a 25 and a 15. A lifter reaches for
+     two 20s. So try starting from each plate size and keep the loading that
+     is makeable, then uses fewest plates, then fewest different sizes. */
+  const fillFrom = i => {
+    let rem = each; const out = [];
+    for(let j = i; j < PLATES.length; j++){
+      const n = Math.floor((rem + 1e-9) / PLATES[j]);
+      if(n > 0){ out.push([PLATES[j], n]); rem = Math.round((rem - n * PLATES[j]) * 100) / 100; }
     }
+    return {plates:out, left:Math.round(rem * 100) / 100};
   };
-  [20, 15, 10, 0].forEach(v=>{
-    const c = h('button',{className:'chip'+(v===bar?' on':''), onClick:e=>{
-      e.preventDefault(); bar = v; store.set('bl_bar', v);
-      barRow.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
-      c.classList.add('on'); draw();
-    }}, v ? v + ' kg bar' : 'No bar');
-    barRow.append(c);
+  let best = null, bestScore = Infinity;
+  for(let i = 0; i < PLATES.length; i++){
+    const c = fillFrom(i);
+    const count = c.plates.reduce((n, pr)=>n + pr[1], 0);
+    const score = (c.left > 0 ? 1e6 : 0) + count * 1000 + c.plates.length;
+    if(score < bestScore){ best = c; bestScore = score; }
+  }
+  return best;
+}
+function plateSheet(startWeight, onUse){
+  let mode = store.get('bl_plate_mode', 'to');   /* 'to': target -> plates.  'from': plates -> total */
+  let bar  = store.get('bl_bar', 20);
+  let total = Math.max(0, parseFloat(startWeight) || bar);
+  const counts = {};
+  for(const p of PLATES) counts[p] = 0;
+
+  let back;                                       /* assigned below; the USE button closes it */
+  const seg    = h('div',{className:'cal-seg'});
+  const barRow = h('div',{className:'chiprow'});
+  const pane   = h('div',{});
+  const foot   = h('div',{});
+
+  const loaded = ()=> bar + 2 * PLATES.reduce((n,p)=>n + p * counts[p], 0);
+  const tidy   = v => Math.round(v * 100) / 100;
+
+  const drawFoot = ()=>{
+    foot.innerHTML = '';
+    const w = tidy(mode === 'from' ? loaded() : total);
+    if(mode === 'from') foot.append(h('div',{className:'pt-box'},
+      h('span',{className:'pt-k'},'On the bar'),
+      h('span',{className:'pt-v'}, w + ' kg')));
+    if(onUse) foot.append(h('button',{className:'cta', onClick:()=>{
+      if(back) back.remove();                     /* you asked for a number; here it is, now go lift */
+      onUse(w);
+    }}, `USE ${w} KG`));
+  };
+
+  const draw = ()=>{
+    pane.innerHTML = '';
+    if(mode === 'to'){
+      const wFld = numField({min:0, step:2.5, wide:true,
+        attrs:{inputmode:'decimal', value:String(total)}});
+      wFld.input.addEventListener('input',()=>{ total = parseFloat(wFld.input.value) || 0; draw(); });
+      const list = h('div',{className:'card', style:{marginTop:'10px'}});
+      const b = plateBreakdown(total, bar);
+      if(!b) list.append(h('div',{className:'empty'},`That is lighter than the ${bar} kg bar.`));
+      else if(!b.plates.length) list.append(h('div',{className:'empty'},'Just the bar.'));
+      else {
+        b.plates.forEach(([p,n])=>list.append(h('div',{className:'plate'},
+          h('span',{className:'pw'}, p + ' kg'),
+          h('span',{className:'pc'}, '\u00d7 ' + n + ' a side'))));
+        if(b.left > 0) list.append(h('div',{className:'plate'},
+          h('span',{className:'pc'},'Cannot make the last'),
+          h('span',{className:'pc'}, tidy(b.left * 2) + ' kg')));
+      }
+      pane.append(h('div',{className:'field'}, h('label',{},'Target weight'), wFld), list);
+    } else {
+      const list = h('div',{className:'card', style:{marginTop:'10px'}});
+      PLATES.forEach(p=>{
+        const f = numField({min:0, max:12, step:1, attrs:{value:String(counts[p])}});
+        f.input.addEventListener('input',()=>{
+          counts[p] = Math.max(0, parseInt(f.input.value) || 0);
+          drawFoot();
+        });
+        list.append(h('div',{className:'plate'},
+          h('span',{className:'pw'}, p + ' kg'),
+          h('span',{className:'pq'}, h('span',{className:'pc'},'a side'), f)));
+      });
+      pane.append(h('div',{className:'meta', style:{marginTop:'4px'}},
+        'How many of each go on one end \u2014 the other end is assumed to match.'), list);
+    }
+    drawFoot();
+  };
+
+  [['to','Weight \u2192 plates'],['from','Plates \u2192 weight']].forEach(([k,label])=>{
+    seg.append(h('button',{className:(mode===k?'on':''), onClick:()=>{
+      mode = k; store.set('bl_plate_mode', k);
+      seg.querySelectorAll('button').forEach((x,i)=>x.classList.toggle('on', ['to','from'][i] === k));
+      draw();
+    }}, label));
   });
-  wFld.input.addEventListener('input',()=>{ total = parseFloat(wFld.input.value) || 0; draw(); });
+  [20, 15, 10, 0].forEach(v=>barRow.append(
+    h('button',{className:'chip'+(v===bar?' on':''), onClick:e=>{
+      e.preventDefault(); bar = v; store.set('bl_bar', v);
+      barRow.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('on', [20,15,10,0][i] === v));
+      draw();
+    }}, v ? v + ' kg bar' : 'No bar')));
+
   draw();
-  return sheet(
+  back = sheet(
     h('div',{className:'kick'},'Loading the bar'),
     h('h3',{style:{marginTop:'4px'}},'Plate maths'),
-    h('div',{className:'field'}, h('label',{},'Target weight'), wFld),
-    h('div',{className:'field'}, h('label',{},'Bar'), barRow),
-    list);
+    seg,
+    h('div',{className:'field', style:{marginTop:'12px'}}, h('label',{},'Bar'), barRow),
+    pane, foot);
+  return back;
 }
 
 /* Epley: a comparable number across different rep counts */
