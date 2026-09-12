@@ -70,6 +70,8 @@
     border:1.5px solid var(--ink);box-shadow:3px 3px 0 var(--ink)}
   .cta:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--ink)}
   .cta.ghost{background:var(--paper2);color:var(--ink)}
+  .cta:disabled{opacity:.4;box-shadow:1px 1px 0 var(--ink)}
+  .cta:disabled:active{transform:none;box-shadow:1px 1px 0 var(--ink)}
   .empty{color:var(--faded);font-size:13.5px;text-align:center;padding:22px 10px;line-height:1.65;font-style:italic}
   .chip{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;font-size:11px;font-weight:700;
     background:var(--paper2);border:1.5px solid var(--ink);color:var(--ink);font-family:var(--small);letter-spacing:.5px;text-transform:uppercase}
@@ -2174,11 +2176,31 @@ function SessionScreen(){
             (isPr && set.done) ? h('span',{className:'prtag'},'PR') : null),
           wFld, rFld, tick));
       });
-      card.append(h('div',{className:'btnrow', style:{marginTop:'8px'}},
-        h('button',{className:'cta ghost', style:{flex:2, marginTop:0, padding:'9px', fontSize:'10px'},
+      /* the last set is the one a stray tap just added, so that is the one
+         that goes - unless it already carries logged work, which gets a prompt */
+      const tail = ex.sets[ex.sets.length-1];
+      const dropTail = ()=>{ ex.sets.pop(); saveSession(); render(); toast('Set removed'); };
+      /* three labels share one row: size each to its own words, let them all
+         grow into the slack, and wrap rather than clip on a narrow phone */
+      const SBTN = {flex:'1 1 auto', width:'auto', whiteSpace:'nowrap',
+        marginTop:0, padding:'9px', fontSize:'10px'};
+      card.append(h('div',{className:'btnrow', style:{marginTop:'8px', flexWrap:'wrap'}},
+        h('button',{className:'cta ghost', style:SBTN,
           onClick:()=>{ const l = ex.sets[ex.sets.length-1];
             ex.sets.push({done:false, weight:l?l.weight:'', reps:''}); saveSession(); render(); }},'＋ ADD SET'),
-        h('button',{className:'cta ghost', style:{flex:1, marginTop:0, padding:'9px', fontSize:'10px'},
+        h('button',{className:'cta ghost', disabled:ex.sets.length < 2, title:'Remove the last set',
+          style:SBTN,
+          onClick:()=>{
+            if(ex.sets.length < 2){ toast('An exercise keeps at least one set'); return; }
+            if(tail.done || tail.reps){
+              const w = parseFloat(tail.weight);
+              confirmSheet('Drop the last set?',
+                `${tail.warm ? 'The warm-up' : 'Set ' + ex.sets.length} — `
+                + (isNaN(w) || !w ? 'bodyweight' : w + ' kg') + ' × ' + (tail.reps || '—')
+                + ' — goes for good.', 'REMOVE IT', dropTail);
+            } else dropTail();
+          }},'－ SET'),
+        h('button',{className:'cta ghost', style:SBTN,
           /* seed from the working weight, not set 1 - set 1 is often a warm-up */
           onClick:()=>plateSheet(target ? target.weight
             : Math.max(0, ...ex.sets.filter(x=>!x.warm).map(x=>parseFloat(x.weight)||0)),
