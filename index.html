@@ -354,10 +354,48 @@
     text-transform:uppercase;margin-top:5px}
   .iss-deck{font-family:var(--serif);font-style:italic;font-size:14px;line-height:1.4;
     color:var(--faded);margin-top:9px;padding-bottom:11px;border-bottom:1.5px solid var(--ink)}
-  .iss-lede{margin-top:11px;font-size:13px;line-height:1.6}
-  .iss-lede p{margin:0 0 8px}
-  .iss-lede p:first-child::first-letter{font-family:var(--wood);float:left;font-size:38px;
-    line-height:.8;padding:3px 6px 0 0;color:var(--red)}
+  /* the broadsheet: running head, rules, byline, two columns, end mark */
+  .iss-run{display:flex;justify-content:space-between;gap:8px;padding-right:26px;
+    font-family:var(--small);font-size:7px;
+    font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--tan);
+    border-bottom:1px solid var(--pale);padding-bottom:4px;margin-bottom:9px}
+  .iss-plate.c{text-align:center}
+  .iss-rules{border-top:3px solid var(--ink);border-bottom:1px solid var(--ink);height:4px;margin:5px 0}
+  .iss-wx{text-align:center;font-family:var(--serif);font-style:italic;font-size:10.5px;
+    color:var(--faded);padding:5px 0}
+  .iss-kick.c{text-align:center}
+  .iss-head.c{text-align:center;font-size:50px;line-height:.82}
+  .iss-deck.c{text-align:center;border-bottom:0;padding-bottom:0;padding-left:6px;padding-right:6px}
+  .iss-hair{border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);height:3px;margin-top:11px}
+  .iss-byl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;
+    font-family:var(--small);font-size:8px;font-weight:700;letter-spacing:1.6px;
+    text-transform:uppercase;padding:7px 0;border-bottom:1.5px solid var(--ink)}
+  .iss-byl .w{color:var(--tan)}
+  .iss-body{column-count:2;column-gap:14px;column-rule:1px solid var(--pale);margin-top:11px;
+    font-size:11.5px;line-height:1.52;text-align:justify;hyphens:auto;-webkit-hyphens:auto}
+  .iss-body p{margin:0;text-indent:1.1em}
+  .iss-body p:first-of-type{text-indent:0}
+  .iss-body p:first-of-type::first-letter{font-family:var(--wood);float:left;font-size:34px;
+    line-height:.78;padding:3px 5px 0 0;color:var(--red)}
+  .iss-sub2{font-family:var(--small);font-size:8px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--red);margin:9px 0 3px}
+  .stat-row.tape{border-left:0;border-right:0;border-width:2px 0;background:none;margin-top:14px}
+  .iss-tape-t{font-family:var(--small);font-size:8px;font-weight:700;letter-spacing:2.4px;
+    text-transform:uppercase;color:var(--faded);text-align:center;margin:12px 0 -10px}
+  .iss-sc{width:100%;border-collapse:collapse;font-size:11.5px}
+  .iss-sc th{font-family:var(--small);font-size:7px;font-weight:700;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--tan);text-align:right;padding:2px 0 4px;
+    border-bottom:1px solid var(--pale)}
+  .iss-sc th:first-child{text-align:left}
+  .iss-sc td{padding:3.5px 0;border-bottom:1px dotted var(--pale);text-align:right;
+    font-variant-numeric:tabular-nums}
+  .iss-sc td:first-child{text-align:left}
+  .iss-sc tr:last-child td{border-bottom:0}
+  .iss-sc .nw{font-weight:700;color:var(--red)}
+  .iss-bt{font-family:var(--wood);font-size:17px;letter-spacing:.8px;text-transform:uppercase;
+    border-bottom:1.5px solid var(--ink);padding-bottom:4px;margin-bottom:5px}
+  .iss-30{text-align:center;font-family:var(--small);font-size:9px;font-weight:700;
+    letter-spacing:3px;color:var(--tan);margin-top:14px}
   .iss-bars{display:flex;align-items:flex-end;gap:7px;height:88px;border-bottom:2px solid var(--ink)}
   .iss-bars .c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;height:100%;gap:4px}
   .iss-bars .b{background:var(--ink);min-height:2px}
@@ -2337,7 +2375,7 @@ function monthWeeks(ym, logs){
     if(from > now) continue;                     // the running month stops at this week
     const inWk = logs.filter(l=>l.date >= a && l.date <= b);
     out.push({label: fromDs(from).toLocaleDateString('en-US',{month:'short', day:'numeric'}),
-      vol: inWk.reduce((n,l)=>n+sessionVolume(l), 0), sess: inWk.length});
+      from, to, vol: inWk.reduce((n,l)=>n+sessionVolume(l), 0), sess: inWk.length});
   }
   return out;
 }
@@ -2383,7 +2421,7 @@ function monthIssue(ym){
   return {ym, month:monthName(ym), year:+ym.slice(0,4),
     vol:+ym.slice(0,4) - 1969, no:+ym.slice(5,7),
     sessions:logs.length, volume, streak:longestRun(dates), gap,
-    weeks:monthWeeks(ym, logs), prs, logs,
+    weeks:monthWeeks(ym, logs), prs, logs, lastDate: dates[dates.length-1] || null,
     first: prior.length === 0,
     priorSessions: prior.length ? bestSess : null,
     priorStreak: prior.length ? bestStreak : null,
@@ -2414,6 +2452,13 @@ function countPhrase(n){
     : 'A total of ' + n;
 }
 function fmtDay(d){ return fromDs(d).toLocaleDateString('en-US',{month:'short', day:'numeric'}); }
+/* Running text wants lower case, but EZ, TRX and the T-bar row do not survive it. */
+function liftLower(name){
+  return String(name).split(' ').map(w=>
+    /^[A-Z]{2,}$/.test(w) ? w
+      : /^[A-Z]-[A-Za-z]/.test(w) ? w[0] + '-' + w.slice(2).toLowerCase()
+      : w.toLowerCase()).join(' ');
+}
 function issueLede(m){
   const best = m.weeks.slice().sort((a,b)=>b.vol - a.vol)[0];
   const p1 = `${countPhrase(m.sessions)} session${m.sessions===1?'':'s'} and ${tonnesOf(m.volume)} tonnes through the hands`
@@ -2421,7 +2466,7 @@ function issueLede(m){
     + (m.gap >= 7 ? `, with ${m.gap} days of quiet in the middle` : '') + '.';
   const p2 = m.prs.length
     ? `${countPhrase(m.prs.length)} lift${m.prs.length===1?'':'s'} went past anything on the board before, `
-      + `the heaviest of them ${m.prs[0].lift.toLowerCase()} at ${m.prs[0].to} kg.`
+      + `the heaviest of them ${liftLower(m.prs[0].lift)} at ${m.prs[0].to} kg.`
     : 'Nothing was beaten this month; the board stands exactly as it was.';
   const p3 = best && best.vol
     ? ` The biggest week started ${best.label} — ${Math.round(best.vol).toLocaleString('en-GB')} kg `
@@ -2429,10 +2474,54 @@ function issueLede(m){
     : '';
   return [p1, p2 + p3];
 }
+/* Above the fold every paper ran a weather line. Ours is set by the month,
+   so a given issue always prints the same one. */
+const ISSUE_WX = [
+  'Cold snap. Extra warm-up advised, not excused.',
+  'Short days, long rests. The bar keeps its own hours.',
+  'Mild. The plates do not care either way.',
+  'Clear skies. No excuse worth printing.',
+  'Cool mornings, warm collars — a good month for pulling.',
+  'Rain expected. The roof over the rack does not leak.',
+  'Frost on the bar before seven. It comes off.',
+  'Forecast: heavy, with a chance of chalk.',
+  'Wind from the east; nothing that moves a loaded bar.',
+  'Long evenings. The gym stays open regardless.',
+  'Close and heavy. Hydrate, then load.',
+  'Dark by five. Lights on, bar loaded.',
+];
+/* The body is reported, not written: every paragraph below is a fact the
+   log can back, and a section only prints when its fact exists. */
+function issueBody(m){
+  const out = issueLede(m).map(p=>({p}));
+  const best = m.weeks.slice().sort((a,b)=>b.vol - a.vol)[0];
+  if(best && best.vol && m.weeks.length > 1){
+    const inWk = m.prs.filter(p=>p.when >= best.from && p.when <= best.to);
+    out.push({sub:'The week that carried it'});
+    out.push({p:`The week of ${best.label} moved ${Math.round(best.vol).toLocaleString('en-GB')} kg `
+      + `across ${best.sess} session${best.sess===1?'':'s'}`
+      + (inWk.length ? ` and holds ${inWk.length === m.prs.length ? 'every one' : countPhrase(inWk.length).toLowerCase()}`
+          + ` of the month's record${m.prs.length===1?'':'s'}` : '')
+      + `, more than any other week in ${m.month}.`});
+  }
+  if(m.gap >= 3){
+    out.push({sub:'What it cost'});
+    out.push({p:`${countPhrase(m.gap)} days went by in the middle of the month with nothing logged. `
+      + 'The log keeps the gap and says nothing else about it. The bar was back under the hands after.'});
+  } else if(m.sessions >= 6){
+    out.push({sub:'Nothing missed'});
+    out.push({p:`The longest quiet stretch ran ${m.gap} day${m.gap===1?'':'s'} — `
+      + `${m.sessions} sessions with no real break in them is the whole story of this issue.`});
+  }
+  return out;
+}
 function composeIssue(m){
   let id = 'steady', hit = null;
   for(const r of ISSUE_RULES){ const v = r.test(m); if(v){ id = r.id; hit = v; break; } }
-  const out = {rule:id, lede:issueLede(m)};
+  const out = {rule:id, lede:issueLede(m), body:issueBody(m),
+    byline:'By the Iron Desk',
+    dateline: m.lastDate ? `From the log · ${fmtDay(m.lastDate)}` : 'From the log',
+    weather: ISSUE_WX[(m.no - 1) % 12]};
   if(id === 'first'){
     out.kicker = 'The first issue';
     out.headline = 'Issue No. 1';
@@ -2440,11 +2529,11 @@ function composeIssue(m){
   } else if(id === 'round'){
     out.kicker = `${hit.lift} · ${fmtDay(hit.when)}`;
     out.headline = `${hit.crossed} at last`;
-    out.deck = `The ${hit.lift.toLowerCase()} cleared ${hit.crossed} kg for the first time — ${hit.to} kg on the day.`;
+    out.deck = `The ${liftLower(hit.lift)} cleared ${hit.crossed} kg for the first time — ${hit.to} kg on the day.`;
   } else if(id === 'climb'){
     out.kicker = `${hit.lift} · ${fmtDay(hit.when)}`;
     out.headline = `Up ${hit.gain} kilos`;
-    out.deck = `No round numbers fell, but the ${hit.lift.toLowerCase()} moved further than anything else on the card.`;
+    out.deck = `No round numbers fell, but the ${liftLower(hit.lift)} moved further than anything else on the card.`;
   } else if(id === 'tonnage'){
     out.kicker = 'Cumulative total';
     out.headline = `${m.tonnage/1000} tonnes`;
@@ -2526,12 +2615,12 @@ function issueImage(m, c){
     return out;
   };
 
-  let y = 108;
+  let y = 96;
   g.fillStyle = FADED; g.font = `bold 20px ${SMALL}`;
   tracked('BROLOGUE MONTHLY', P, y, 5);
   g.textAlign = 'right'; g.fillText('EST. 1974', W - P, y); g.textAlign = 'left';
 
-  y += 96;
+  y += 88;
   g.font = `104px ${WOOD}`;
   g.fillStyle = INK; g.fillText('BRO', P, y);
   const bw = g.measureText('BRO').width;
@@ -2546,11 +2635,11 @@ function issueImage(m, c){
   g.textAlign = 'left';
   y += 18; rule(y, 5);
 
-  y += 74;
+  y += 62;
   g.fillStyle = RED; g.font = `bold 22px ${SMALL}`;
   tracked(c.kicker.toUpperCase(), P, y, 5);
 
-  y += 34;
+  y += 30;
   g.fillStyle = INK;
   let size = 128;
   g.font = `${size}px ${WOOD}`;
@@ -2562,7 +2651,14 @@ function issueImage(m, c){
   g.fillStyle = FADED; g.font = `italic 30px ${SERIF}`;
   y = wrap(c.deck, P, y, W - P * 2, 40);
 
-  y += 16; g.fillStyle = INK; g.fillRect(P, y, W - P * 2, 3); y += 54;
+  /* byline sits under the deck, the rule under it opens the numbers */
+  y += 26;
+  g.fillStyle = INK; g.font = `bold 18px ${SMALL}`;
+  tracked(c.byline.toUpperCase(), P, y, 4);
+  g.textAlign = 'right'; g.fillStyle = TAN;
+  g.fillText(c.dateline.toUpperCase(), W - P, y); g.textAlign = 'left';
+  y += 14; g.fillStyle = INK; g.fillRect(P, y, W - P * 2, 3);
+  y += 68;
 
   const stats = [[String(m.sessions), 'SESSIONS'], [tonnesOf(m.volume), 'TONNES'],
                  [String(m.streak), 'BEST STREAK'], [String(m.prs.length), 'RECORDS']];
@@ -2579,23 +2675,36 @@ function issueImage(m, c){
   g.textAlign = 'left';
   y += 84; g.fillStyle = INK; g.fillRect(P, y, W - P * 2, 3);
 
+  const bH = 108, bTop = H - 166 - bH;
   if(m.prs.length){
-    y += 52;
+    y += 44;
+    /* only as many records as clear the chart below - the page is a fixed size */
+    const room = Math.max(1, Math.floor((bTop - 62 - y - 18) / 44));
+    const shown = Math.min(m.prs.length, room);
     g.fillStyle = RED; g.font = `bold 20px ${SMALL}`;
-    tracked('TOP OF THE MONTH', P, y, 5);
-    y += 20;
-    m.prs.slice(0, 4).forEach(pr=>{
-      y += 46;
+    tracked('THE BOX SCORE' + (m.prs.length > shown
+      ? `  ·  ${m.prs.length - shown} MORE INSIDE` : ''), P, y, 5);
+    y += 18;
+    m.prs.slice(0, shown).forEach(pr=>{
+      y += 44;
       g.fillStyle = INK; g.font = `30px ${SERIF}`;
       g.fillText(pr.lift, P, y);
-      g.textAlign = 'right'; g.fillStyle = RED; g.font = `40px ${WOOD}`;
-      g.fillText(pr.to + ' KG', W - P, y + 4); g.textAlign = 'left';
+      g.textAlign = 'right';
+      g.fillStyle = RED; g.font = `38px ${WOOD}`;
+      const to = pr.to + ' KG';
+      g.fillText(to, W - P, y + 4);
+      if(pr.from){
+        const tw = g.measureText(to).width;
+        g.fillStyle = TAN; g.font = `26px ${SERIF}`;
+        g.fillText(pr.from + ' →', W - P - tw - 12, y + 2);
+      }
+      g.textAlign = 'left';
       g.fillStyle = TAN; g.fillRect(P, y + 14, W - P * 2, 1);
     });
   }
 
   const peak = Math.max(1, ...m.weeks.map(w=>w.vol));
-  const bH = 108, bTop = H - 166 - bH, bw2 = (W - P * 2) / m.weeks.length;
+  const bw2 = (W - P * 2) / m.weeks.length;
   g.fillStyle = RED; g.font = `bold 20px ${SMALL}`;
   tracked('THE MONTH IN TONNAGE', P, bTop - 22, 5);
   const best = Math.max(0, ...m.weeks.map(w=>w.vol));
@@ -2639,23 +2748,37 @@ function issueSheet(ym){
   const targets = monthsWithLogs()[0] === ym ? issueTargets(m) : [];
   const page = h('div',{});
 
+  /* a closed issue is dated the morning after the month; a running one, today */
+  const press = m.partial ? today()
+    : ds(new Date(+m.ym.slice(0,4), +m.ym.slice(5,7), 1));
+  const pressLabel = fromDs(press).toLocaleDateString('en-US',
+    {weekday:'short', month:'short', day:'numeric'});
+
   page.append(
-    h('div',{className:'iss-mast'}, h('span',{},'Brologue Monthly'), h('span',{},'Est. 1974')),
-    h('div',{className:'iss-plate'},'Bro', h('em',{},'logue')),
+    h('div',{className:'iss-run'}, h('span',{},'Brologue Monthly'),
+      h('span',{}, `The ${m.month} issue · Page One`)),
+    h('div',{className:'iss-mast'}, h('span',{}, `Vol. ${m.vol} · No. ${m.no}`),
+      h('span',{},'Est. 1974')),
+    h('div',{className:'iss-plate c'},'Bro', h('em',{},'logue')),
+    h('div',{className:'iss-rules'}),
     h('div',{className:'iss-date'},
-      h('span',{}, `Vol. ${m.vol} · No. ${m.no}`),
-      h('span',{className:'r'}, m.partial ? 'Proof copy' : `The ${m.month} issue`),
+      h('span',{}, pressLabel),
+      h('span',{className:'r'}, m.partial ? 'Proof copy' : 'Final edition'),
       h('span',{},'25¢')),
+    h('div',{className:'iss-wx'}, c.weather),
     /* Element.append stringifies null, unlike h() - so this branch is its own call */
     h('div',{}, m.partial ? h('div',{className:'iss-proof'},
       `Goes to press on the 1st — ${m.sessions} session${m.sessions===1?'':'s'} in so far.`) : null),
-    h('div',{className:'iss-kick'}, c.kicker),
-    h('div',{className:'iss-head'}, c.headline),
-    h('div',{className:'iss-deck'}, c.deck),
-    h('div',{className:'iss-lede'}, c.lede.map(p=>h('p',{}, p))));
+    h('div',{className:'iss-kick c'}, c.kicker),
+    h('div',{className:'iss-head c'}, c.headline),
+    h('div',{className:'iss-deck c'}, c.deck),
+    h('div',{className:'iss-hair'}),
+    h('div',{className:'iss-byl'}, h('span',{}, c.byline), h('span',{className:'w'}, c.dateline)),
+    h('div',{className:'iss-body'}, c.body.map(b=>
+      b.sub ? h('div',{className:'iss-sub2'}, b.sub) : h('p',{}, b.p))));
 
-  page.append(h('div',{className:'sl'},'By the numbers'));
-  page.append(h('div',{className:'stat-row'},
+  page.append(h('div',{className:'iss-tape-t'},'Tale of the tape'));
+  page.append(h('div',{className:'stat-row tape'},
     h('div',{className:'stat'}, h('div',{className:'v'}, String(m.sessions)),
       h('div',{className:'k'},'Sessions')),
     h('div',{className:'stat'}, h('div',{className:'v'}, tonnesOf(m.volume)),
@@ -2665,17 +2788,23 @@ function issueSheet(ym){
     h('div',{className:'stat'}, h('div',{className:'v'+(m.prs.length?' hot':'')}, String(m.prs.length)),
       h('div',{className:'k'},'Records'))));
 
-  page.append(h('div',{className:'sl'},'Top of the month'));
-  const board = h('div',{className:'card'});
+  /* the records, set as a box score - old weight, new weight, the day it fell */
+  const board = h('div',{className:'card', style:{marginTop:'14px'}});
+  board.append(h('div',{className:'iss-bt'},'The box score'));
   if(m.prs.length){
-    m.prs.slice(0,6).forEach(p=>board.append(h('div',{className:'log-e'},
-      h('span',{}, p.lift, h('span',{className:'prtag'},'PR')),
-      h('span',{className:'lw'}, (p.from ? `${p.from} → ` : '') + `${p.to} kg · ${fmtDay(p.when)}`))));
+    const rows = m.prs.slice(0,6).map(p=>h('tr',{},
+      h('td',{}, p.lift, h('span',{className:'prtag'},'PR')),
+      h('td',{}, p.from ? String(p.from) : '—'),
+      h('td',{className:'nw'}, String(p.to)),
+      h('td',{}, fmtDay(p.when))));
+    board.append(h('table',{className:'iss-sc'}, h('tbody',{},
+      h('tr',{}, h('th',{},'Lift'), h('th',{},'Old'), h('th',{},'New'), h('th',{},'Date')),
+      rows)));
     if(m.prs.length > 6) board.append(h('div',{className:'meta', style:{marginTop:'6px'}},
       `…and ${m.prs.length - 6} more.`));
   } else {
     board.append(h('div',{className:'empty', style:{padding:'12px 4px'}},
-      'Nothing beaten this month.'));
+      'Nothing beaten this month. The board stands as it was.'));
   }
   page.append(board);
 
@@ -2695,7 +2824,8 @@ function issueSheet(ym){
         ' ' + x.t.note.replace(/\.\s[\s\S]*$/, '').toLowerCase())),
       h('span',{className:'lw'}, x.t.weight + ' kg')))));
 
-  page.append(h('button',{className:'cta ghost', style:{marginTop:'16px'},
+  page.append(h('div',{className:'iss-30'},'— 30 —'));
+  page.append(h('button',{className:'cta ghost', style:{marginTop:'10px'},
     onClick:()=>shareIssue(ym)},'⇪ SHARE THIS ISSUE'));
   page.append(h('div',{className:'iss-colo'},
     h('span',{},'Printed in your pocket'), h('span',{}, `Brologue · ${m.year}`)));
