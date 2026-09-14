@@ -142,6 +142,12 @@
   .inp{width:100%;background:var(--paper2);border:1.5px solid var(--ink);color:var(--ink);
     font-size:14px;padding:11px 12px;outline:none;border-radius:0}
   .inp:focus{border-color:var(--red);box-shadow:2px 2px 0 var(--ink)}
+  button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible,
+  [tabindex]:focus-visible{outline:2.5px solid var(--red);outline-offset:2px}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;
+      transition-duration:.001ms!important;scroll-behavior:auto!important}
+  }
   input[type=date].inp,input[type=time].inp{color-scheme:light}
 
   /* number field with steppers (replaces bare numeric inputs) */
@@ -188,7 +194,8 @@
 
   /* sheet / modal */
   .sheet-back{position:fixed;inset:0;background:rgba(43,32,22,.55);z-index:40;display:flex;align-items:flex-end;justify-content:center}
-  .sheet{background:var(--paper);border:2px solid var(--ink);border-bottom:0;width:100%;max-width:560px;
+  .sheet{overscroll-behavior:contain;outline:none;
+    background:var(--paper);border:2px solid var(--ink);border-bottom:0;width:100%;max-width:560px;
     max-height:88dvh;overflow-y:auto;padding:18px 18px calc(22px + var(--sab));animation:slideup .22s ease;
     background-image:radial-gradient(rgba(43,32,22,.05) 1px,transparent 1px);background-size:4px 4px}
   .sheet h3{font-family:var(--wood);font-size:24px;letter-spacing:1.5px;text-transform:uppercase;font-weight:400}
@@ -533,7 +540,7 @@ function styledSelect(options, value, onChange){
   const btnTxt = h('span',{}, label(cur));
   const list = h('div',{className:'ssel-list'});
   const root = h('div',{className:'ssel'});
-  const onDoc = e => { if(!root.contains(e.target)) close(); };
+  const onDoc = e => { if(!root.isConnected || !root.contains(e.target)) close(); };
   const close = ()=>{ list.style.display='none'; document.removeEventListener('click', onDoc, true); };
   const open = ()=>{
     list.innerHTML='';
@@ -580,9 +587,11 @@ function numField(o){
     inp.dispatchEvent(new Event('input', {bubbles:true}));
   };
   const el = h('div',{className:'stp'+(o.wide?' wide':'')},
-    h('button',{className:'stp-b', type:'button', onClick:e=>{e.preventDefault(); bump(-1);}},'−'),
+    h('button',{className:'stp-b', type:'button', 'aria-label':'Less',
+      onClick:e=>{e.preventDefault(); bump(-1);}},'−'),
     inp,
-    h('button',{className:'stp-b', type:'button', onClick:e=>{e.preventDefault(); bump(1);}},'+'));
+    h('button',{className:'stp-b', type:'button', 'aria-label':'More',
+      onClick:e=>{e.preventDefault(); bump(1);}},'+'));
   el.input = inp;
   return el;
 }
@@ -614,8 +623,8 @@ function datePicker(value, onPick){
   const back = sheet(
     h('h3',{},'Pick a date'),
     h('div',{className:'dp-head'},
-      h('button',{className:'icon-btn', onClick:()=>step(-1)},'‹'), label,
-      h('button',{className:'icon-btn', onClick:()=>step(1)},'›')),
+      h('button',{className:'icon-btn', 'aria-label':'Previous month', onClick:()=>step(-1)},'‹'), label,
+      h('button',{className:'icon-btn', 'aria-label':'Next month', onClick:()=>step(1)},'›')),
     grid,
     h('button',{className:'cta ghost', onClick:()=>{ back.remove(); onPick(today()); }},'TODAY'));
   draw();
@@ -643,55 +652,97 @@ async function keepAwake(on){
   }catch(e){ WAKE = null; }
 }
 document.addEventListener('visibilitychange', ()=>{
-  if(!document.hidden && STATE.session && !STATE.session.finished) keepAwake(true);
+  if(document.hidden) return;
+  if(STATE.session && !STATE.session.finished) keepAwake(true);
+  syncRest();
 });
 
-/* rest timer — lives on <body> so a re-render can't kill it */
-let REST = null;
-function stopRest(){
-  if(REST){ clearInterval(REST.iv); REST.el.remove(); REST = null; }
-  document.body.classList.remove('rest-on');
+/* The chime has to come out of a context opened by a tap: one created when
+   the timer ends starts suspended on iOS and never makes a sound. Ticking a
+   set is that tap, so the context is opened there and kept. */
+let AUDIO = null;
+function primeAudio(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    if(!AUDIO) AUDIO = new AC();
+    if(AUDIO.state === 'suspended') AUDIO.resume();
+  }catch(e){ AUDIO = null; }
 }
 function restChime(){
   try{ if(navigator.vibrate) navigator.vibrate([120,70,120]); }catch(e){}
   try{
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if(!AC) return;
-    const ac = new AC(), o = ac.createOscillator(), g = ac.createGain();
+    if(!AUDIO) return;                       /* never opened by a tap - stay quiet */
+    if(AUDIO.state === 'suspended') AUDIO.resume();
+    const o = AUDIO.createOscillator(), g = AUDIO.createGain();
     o.type = 'square'; o.frequency.value = 784;
-    o.connect(g); g.connect(ac.destination);
-    g.gain.setValueAtTime(0.0001, ac.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.18, ac.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.55);
-    o.start(); o.stop(ac.currentTime + 0.55);
-    setTimeout(()=>{ try{ ac.close(); }catch(e){} }, 900);
+    o.connect(g); g.connect(AUDIO.destination);
+    const t0 = AUDIO.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
+    o.start(); o.stop(t0 + 0.55);
   }catch(e){}
 }
-function startRest(secs){
+
+/* ── rest timer ─────────────────────────────────────────────────────
+   Lives on <body> so a re-render can't kill it, and counts down to a
+   deadline rather than by ticks: a phone throttles or suspends timers
+   the moment the screen locks, and a rest that pauses in your pocket is
+   worse than no rest timer at all. The deadline is stored, so the bar
+   also survives the tab being evicted mid-set. ───────────────────── */
+let REST = null;
+function stopRest(){
+  if(REST){ clearInterval(REST.iv); REST.el.remove(); REST = null; }
+  document.body.classList.remove('rest-on');
+  try{ localStorage.removeItem('bl_rest'); }catch(e){}
+  delete _memo['bl_rest'];
+}
+function restLeft(endsAt){ return Math.max(0, Math.round((endsAt - Date.now()) / 1000)); }
+function armRest(endsAt, total){
   stopRest();
-  secs = parseInt(secs) || 0;
-  if(secs <= 0) return;
-  let left = secs, total = secs;
+  if(restLeft(endsAt) <= 0) return;
+  store.set('bl_rest', {endsAt, total});
   const t = h('div',{className:'rest-t'});
   const prog = h('div',{className:'rest-prog'});
   const paint = ()=>{
+    const left = restLeft(endsAt);
     const m = Math.floor(left/60), sec = left%60;
     t.textContent = m ? m+':'+String(sec).padStart(2,'0') : sec+'s';
     prog.style.width = Math.max(0, Math.min(100, (left/total)*100)) + '%';
+    return left;
   };
   const el = h('div',{className:'rest-bar'}, prog,
     h('div',{}, h('div',{className:'rest-lbl'},'Rest'), t),
     h('div',{style:{marginLeft:'auto', display:'flex', gap:'8px'}},
-      h('button',{onClick:()=>{ left += 30; total = Math.max(total, left); paint(); }},'+30s'),
+      h('button',{onClick:()=>{
+        endsAt += 30000; total = Math.max(total, Math.ceil((endsAt - Date.now())/1000));
+        store.set('bl_rest', {endsAt, total}); paint();
+      }},'+30s'),
       h('button',{onClick:stopRest},'Skip')));
   paint();
   document.body.append(el);
   document.body.classList.add('rest-on');
-  REST = { el, iv: setInterval(()=>{
-    left--;
-    if(left <= 0){ stopRest(); restChime(); toast('Rest done — next set 💪'); return; }
-    paint();
-  }, 1000) };
+  REST = { el, paint, iv: setInterval(()=>{
+    if(paint() <= 0){ stopRest(); restChime(); toast('Rest done — next set 💪'); }
+  }, 500) };
+}
+function startRest(secs){
+  secs = parseInt(secs) || 0;
+  if(secs <= 0) return stopRest();
+  primeAudio();                              /* we are inside the tap that started it */
+  armRest(Date.now() + secs * 1000, secs);
+}
+/* coming back to the app: catch up the clock, or pick the rest back up */
+function syncRest(){
+  if(REST){
+    if(REST.paint() <= 0){ stopRest(); restChime(); toast('Rest done — next set 💪'); }
+    return;
+  }
+  const st = store.get('bl_rest', null);
+  if(!st || !st.endsAt) return;
+  if(!STATE.session || STATE.session.finished || restLeft(st.endsAt) <= 0) return stopRest();
+  armRest(st.endsAt, st.total || 90);
 }
 
 /* ── constants ─────────────────────────────────────────────────────── */
@@ -1364,9 +1415,12 @@ function occursOn(entry, dateStr){
   }
   if(r.freq === 'monthly'){
     const a = fromDs(entry.date), b = fromDs(dateStr);
-    if(a.getDate() !== b.getDate()) return false;
     const months = (b.getFullYear()-a.getFullYear())*12 + (b.getMonth()-a.getMonth());
-    return months % (r.interval||1) === 0;
+    if(months < 0 || months % (r.interval||1) !== 0) return false;
+    /* a series started on the 31st lands on the 30th in April and the 28th in
+       February - matching the day number exactly used to skip those months */
+    const dim = new Date(b.getFullYear(), b.getMonth()+1, 0).getDate();
+    return b.getDate() === Math.min(a.getDate(), dim);
   }
   return false;
 }
@@ -1386,6 +1440,11 @@ function recurLabel(e){
   }
   if(r.freq==='monthly') return 'Monthly';
   return '';
+}
+function recurLine(e){
+  const t = e.time ? fmtTime(e.time) : 'All day';
+  const ends = e.until ? ' · until ' + fromDs(e.until).toLocaleDateString('en-US',{month:'short', day:'numeric'}) : '';
+  return recurLabel(e) + ' · ' + t + ends;
 }
 
 /* ── streak ────────────────────────────────────────────────────────── */
@@ -1504,7 +1563,9 @@ function ctaLabel(w, done){
 }
 
 function streakCount(){
-  const dates = [...new Set(db.logs.map(l=>l.date))].sort().reverse();
+  /* a workout started from a future calendar day is logged on that day; it is
+     not a broken streak, it just has not happened yet */
+  const dates = [...new Set(db.logs.map(l=>l.date))].filter(d=>d <= today()).sort().reverse();
   if(!dates.length) return 0;
   let cur = today();
   if(dates[0] !== cur){
@@ -1549,11 +1610,33 @@ function icsFold(line){
   return out.join('\r\n');
 }
 function icsDate(dateStr){ return dateStr.replace(/-/g, ''); }
+/* DTSTART is always an occurrence, so it has to be one: a Mon+Wed series
+   created on a Tuesday used to put a phantom workout on that Tuesday. */
+function icsAnchor(e){
+  const probe = {date:e.date, recur:e.recur, until:null, exceptions:[]};
+  for(let i = 0; i < 370; i++){
+    const d = ds(addDays(fromDs(e.date), i));
+    if(occursOn(probe, d)) return d;
+  }
+  return e.date;
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+function atTime(dateStr, time){
+  const [hh, mm] = String(time || '00:00').split(':').map(Number);
+  const d = fromDs(dateStr); d.setHours(hh || 0, mm || 0, 0, 0); return d;
+}
+function icsLocal(d){
+  return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`
+    + `T${pad2(d.getHours())}${pad2(d.getMinutes())}00`;
+}
+function icsUtc(d){ return d.toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); }
 function icsStamp(){ return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''); }
 function icsRule(e){
   const r = e.recur || {freq:'none'};
   const n = Math.max(1, r.interval || 1);
-  const until = e.until ? ';UNTIL=' + icsDate(e.until) : '';
+  /* a timed DTSTART needs a UTC UNTIL; an all-day one needs a plain date */
+  const endOfDay = ds => { const d = fromDs(ds); d.setHours(23,59,59,0); return icsUtc(d); };
+  const until = e.until ? ';UNTIL=' + (e.time ? endOfDay(e.until) : icsDate(e.until)) : '';
   if(r.freq === 'daily')   return `RRULE:FREQ=DAILY;INTERVAL=${n}${until}`;
   if(r.freq === 'monthly') return `RRULE:FREQ=MONTHLY;INTERVAL=${n}${until}`;
   if(r.freq === 'weekly'){
@@ -1561,6 +1644,13 @@ function icsRule(e){
     return `RRULE:FREQ=WEEKLY;INTERVAL=${n};BYDAY=${days.map(d=>BYDAY[d]).join(',')}${until}`;
   }
   return null;
+}
+function timeOptions(from, to){
+  const out = [];
+  for(let hh = from; hh <= to; hh++) for(const mm of ['00','30'])
+    out.push([`${pad2(hh)}:${mm}`,
+      new Date(2000,0,1,hh,+mm).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})]);
+  return out;
 }
 function reminderAt(){ return store.get('bl_remind_at', '17:30'); }
 function icsTrigger(){
@@ -1590,21 +1680,32 @@ function buildIcs(){
     const w = getWorkout(e.workoutId);
     if(!w) continue;
     const body = (w.ex || []).map(x=>`${x[0]} — ${x[1]} × ${x[2]}${x[3]?` @ ${x[3]}kg`:''}`).join('\n');
+    const anchor = icsAnchor(e);
     L.push('BEGIN:VEVENT',
       'UID:' + uid(e),
       'SEQUENCE:' + seq,
-      'DTSTAMP:' + icsStamp(),
-      'DTSTART;VALUE=DATE:' + icsDate(e.date),
-      'DTEND;VALUE=DATE:' + icsDate(ds(addDays(fromDs(e.date), 1))),
-      'SUMMARY:' + icsEsc('🏋 ' + w.name),
+      'DTSTAMP:' + icsStamp());
+    if(e.time){
+      const from = atTime(anchor, e.time);
+      const to = new Date(from.getTime() + Math.max(15, w.mins || 45) * 60000);
+      L.push('DTSTART:' + icsLocal(from), 'DTEND:' + icsLocal(to));
+    } else {
+      L.push('DTSTART;VALUE=DATE:' + icsDate(anchor),
+             'DTEND;VALUE=DATE:' + icsDate(ds(addDays(fromDs(anchor), 1))));
+    }
+    L.push('SUMMARY:' + icsEsc('🏋 ' + w.name),
       'DESCRIPTION:' + icsEsc(`${w.mins} min · ${w.focus}\n\n${body}\n\nLogged in Brologue.`),
       'URL:' + APP_URL,
       'TRANSP:TRANSPARENT');
     const rule = icsRule(e);
     if(rule) L.push(rule);
     if(e.exceptions && e.exceptions.length)
-      L.push('EXDATE;VALUE=DATE:' + e.exceptions.map(icsDate).join(','));
-    L.push('BEGIN:VALARM', icsTrigger(), 'ACTION:DISPLAY',
+      L.push(e.time
+        ? 'EXDATE:' + e.exceptions.map(d=>icsLocal(atTime(d, e.time))).join(',')
+        : 'EXDATE;VALUE=DATE:' + e.exceptions.map(icsDate).join(','));
+    /* an all-day event starts at midnight, so the reminder is an offset into
+       the day; a timed one just needs a nudge before it */
+    L.push('BEGIN:VALARM', e.time ? 'TRIGGER:-PT15M' : icsTrigger(), 'ACTION:DISPLAY',
       'DESCRIPTION:' + icsEsc(w.name + ' today'), 'END:VALARM', 'END:VEVENT');
   }
   /* anything exported before and since deleted is withdrawn, not left to haunt */
@@ -1626,10 +1727,19 @@ function gcalUrl(e){
   const w = getWorkout(e.workoutId);
   if(!w) return null;
   const body = (w.ex || []).map(x=>`${x[0]} — ${x[1]} × ${x[2]}${x[3]?` @ ${x[3]}kg`:''}`).join('\n');
+  const anchor = icsAnchor(e);
+  let dates;
+  if(e.time){
+    const from = atTime(anchor, e.time);
+    const to = new Date(from.getTime() + Math.max(15, w.mins || 45) * 60000);
+    dates = icsLocal(from) + '/' + icsLocal(to);
+  } else {
+    dates = icsDate(anchor) + '/' + icsDate(ds(addDays(fromDs(anchor), 1)));
+  }
   const p = new URLSearchParams({
     action:'TEMPLATE',
     text:'🏋 ' + w.name,
-    dates: icsDate(e.date) + '/' + icsDate(ds(addDays(fromDs(e.date), 1))),
+    dates,
     details: `${w.mins} min · ${w.focus}\n\n${body}\n\n${APP_URL}`,
   });
   const rule = icsRule(e);
@@ -1646,7 +1756,7 @@ function gcalSheet(){
       h('div',{style:{flex:'1', minWidth:'0'}},
         h('div',{className:'gc-n'}, w.name),
         h('div',{className:'gc-m'}, fromDs(e.date).toLocaleDateString('en-US',
-          {weekday:'short', day:'numeric', month:'short'}) + ' · ' + recurLabel(e))),
+          {weekday:'short', day:'numeric', month:'short'}) + ' · ' + recurLine(e))),
       h('a',{className:'gc-a', href:gcalUrl(e), target:'_blank', rel:'noopener'},'ADD →')));
   });
   return sheet(
@@ -1665,11 +1775,16 @@ async function exportCalendar(){
   const built = buildIcs();
   const blob = new Blob([built.text], {type:'text/calendar;charset=utf-8'});
   const file = new File([blob], 'brologue.ics', {type:'text/calendar'});
-  store.set('bl_ics', built.state);
   if(navigator.canShare && navigator.canShare({files:[file]})){
-    try{ await navigator.share({files:[file], title:'Brologue training schedule'}); render(); return; }
+    /* only record the export once it has left the app - a dismissed share
+       used to leave the app claiming the calendar was up to date */
+    try{
+      await navigator.share({files:[file], title:'Brologue training schedule'});
+      store.set('bl_ics', built.state); render(); return;
+    }
     catch(e){ /* dismissed — fall through to a download */ }
   }
+  store.set('bl_ics', built.state);
   const url = URL.createObjectURL(blob);
   const a = h('a',{href:url, download:'brologue.ics'});
   document.body.append(a); a.click(); a.remove();
@@ -1752,20 +1867,70 @@ function toast(msg){
   document.body.append(t);
   setTimeout(()=>t.remove(), 2400);
 }
+/* A sheet is the app's only modal, so it has to behave like one: Escape
+   closes it, and so does the phone's back button - each sheet pushes a
+   history entry and takes it back on the way out. Every caller still just
+   calls back.remove(), which is why the teardown hangs off remove itself. */
+let SHEET_DEPTH = 0, SHEET_POPPING = false, SHEET_UNWIND = 0;
 function sheet(...children){
   const back = h('div',{className:'sheet-back', onClick:e=>{ if(e.target===back) back.remove(); }});
-  const s = h('div',{className:'sheet'},
-    h('button',{className:'close', onClick:()=>back.remove()},'✕'),
+  const s = h('div',{className:'sheet', role:'dialog', 'aria-modal':'true', tabindex:'-1'},
+    h('button',{className:'close', 'aria-label':'Close', onClick:()=>back.remove()},'✕'),
     ...children);
   back.append(s);
+  const onKey = e => {
+    if(e.key !== 'Escape' || !back.isConnected) return;
+    const open = document.querySelectorAll('.sheet-back');
+    if(back !== open[open.length-1]) return;
+    /* every open sheet has a handler on the document, so the one that acts
+       has to stop the others - otherwise one Escape closes the whole stack */
+    e.preventDefault(); e.stopImmediatePropagation();
+    back.remove();
+  };
+  document.addEventListener('keydown', onKey, true);
+  const drop = Element.prototype.remove.bind(back);
+  let gone = false;
+  back.remove = ()=>{
+    if(gone) return;
+    gone = true;
+    document.removeEventListener('keydown', onKey, true);
+    drop();
+    if(SHEET_DEPTH > 0){
+      SHEET_DEPTH--;
+      /* handing back our own entry fires popstate; that one is ours and must
+         not be read as the user pressing back on the sheet underneath */
+      if(!SHEET_POPPING){ SHEET_UNWIND++; history.back(); }
+    }
+  };
+  try{ history.pushState({bl:'sheet'}, ''); SHEET_DEPTH++; }catch(e){}
   document.body.append(back);
+  try{ s.focus({preventScroll:true}); }catch(e){}
   return back;
 }
+window.addEventListener('popstate', ()=>{
+  if(SHEET_UNWIND > 0){ SHEET_UNWIND--; return; }
+  const open = document.querySelectorAll('.sheet-back');
+  if(!open.length) return;
+  SHEET_POPPING = true;
+  open[open.length-1].remove();
+  SHEET_POPPING = false;
+});
 
 /* ── render root ───────────────────────────────────────────────────── */
 const APP = () => document.getElementById('app');
+/* Every render rebuilds the screen, which used to drop you back at the top
+   of it - once per ticked set. Each screen keeps its own scroll position;
+   a new exercise is a new key, so moving on still starts at the top. */
+const SCROLL = {};
+function screenKey(){
+  return STATE.session ? ('session:' + (STATE.session.finished ? 'done' : STATE.session.cur))
+                       : ('tab:' + STATE.tab);
+}
 function render(){
-  const root = APP(); root.innerHTML = '';
+  const root = APP();
+  const prev = root.querySelector('.scrolly');
+  if(prev && root.dataset.key) SCROLL[root.dataset.key] = prev.scrollTop;
+  root.innerHTML = '';
   let scr;
   try{
     if(STATE.session) scr = SessionScreen();
@@ -1780,6 +1945,12 @@ function render(){
   }
   root.append(scr);
   if(!STATE.session) root.append(TabBar());
+  const key = screenKey();
+  root.dataset.key = key;
+  const now = root.querySelector('.scrolly');
+  /* scrollTop clamps to zero until the box has been laid out, so ask for a
+     measurement first - reading offsetHeight is what forces that */
+  if(now && SCROLL[key]){ void now.offsetHeight; now.scrollTop = SCROLL[key]; }
   if(STATE.session) saveSession();
   updateBadge();
 }
@@ -1822,7 +1993,8 @@ function TodayScreen(){
     h('div',{className:'mast'},
       h('span',{},'Brologue Monthly'),
       h('span',{},`Vol. ${now.getFullYear()-1969} · No. ${now.getMonth()+1} · 25¢`),
-      h('button',{className:'icon-btn', style:{padding:'0 2px', fontSize:'15px'}, title:'Settings', onClick:settingsSheet},'⚙︎')),
+      h('button',{className:'icon-btn', style:{padding:'0 2px', fontSize:'15px'}, title:'Settings',
+        'aria-label':'Settings', onClick:settingsSheet},'⚙︎')),
     h('div',{className:'app-bar', style:{margin:0, paddingTop:'2px'}},
       h('div',{className:'brand'},'Bro', h('em',{},'logue')),
       h('span',{style:{fontFamily:'var(--small)', fontSize:'9px', letterSpacing:'2px', color:'var(--faded)'}},'EST. 1974'))));
@@ -1847,7 +2019,8 @@ function TodayScreen(){
     h('div',{className:'rs-m'}, `${sessionSetCount(live)} set${sessionSetCount(live)===1?'':'s'} logged · `
       + `started ${new Date(live.startedAt).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})}`),
     h('div',{className:'btnrow'},
-      h('button',{className:'cta', style:{flex:2}, onClick:()=>{ STATE.session = live; render(); }},'RESUME →'),
+      h('button',{className:'cta', style:{flex:2}, onClick:()=>{
+        STATE.session = live; primeAudio(); render(); syncRest(); }},'RESUME →'),
       h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{
         confirmSheet('Discard it?','The sets you logged in that session will not be saved.','DISCARD',
           ()=>{ db.live = null; render(); });
@@ -1896,9 +2069,11 @@ function MiniMonth(){
   const d = STATE.miniDate, yr = d.getFullYear(), mo = d.getMonth();
   const box = h('div',{className:'mini-cal'});
   box.append(h('div',{className:'mini-head'},
-    h('button',{className:'icon-btn', onClick:()=>{STATE.miniDate=new Date(yr,mo-1,1); render();}},'‹'),
+    h('button',{className:'icon-btn', 'aria-label':'Previous month',
+      onClick:()=>{STATE.miniDate=new Date(yr,mo-1,1); render();}},'‹'),
     h('b',{}, d.toLocaleDateString('en-US',{month:'long', year:'numeric'})),
-    h('button',{className:'icon-btn', onClick:()=>{STATE.miniDate=new Date(yr,mo+1,1); render();}},'›')));
+    h('button',{className:'icon-btn', 'aria-label':'Next month',
+      onClick:()=>{STATE.miniDate=new Date(yr,mo+1,1); render();}},'›')));
   const grid = h('div',{className:'mini-grid'});
   DOW.forEach(dw=>grid.append(h('div',{className:'mini-dow'}, dw[0])));
   const first = new Date(yr,mo,1); let sdow = first.getDay(); sdow = sdow===0?6:sdow-1;
@@ -1928,7 +2103,7 @@ function daySheet(dateStr){
           h('div',{className:'day-ev'+(ev.done?' done':''), onClick:()=>{back.remove(); eventSheet(ev);}},
             h('div',{},
               h('div',{className:'dn'}, (ev.done?'✓ ':'')+(ev.workout?ev.workout.name:'?')),
-              h('div',{className:'dm'}, recurLabel(ev.entry))),
+              h('div',{className:'dm'}, recurLine(ev.entry))),
             h('span',{className:'dt'}, ev.time?fmtTime(ev.time):''))))
       : h('div',{className:'empty'},'A rest day — or an opportunity.'),
     h('button',{className:'cta', onClick:()=>{back.remove(); scheduleSheet(dateStr);}},'＋ SCHEDULE WORKOUT'));
@@ -1943,7 +2118,12 @@ function scheduleSheet(prefDate, entry, prefWorkout){
     freq: entry ? (entry.recur?entry.recur.freq:'none') : 'none',
     interval: entry && entry.recur ? (entry.recur.interval||1) : 1,
     days: entry && entry.recur && entry.recur.days ? [...entry.recur.days] : [],
+    time: entry ? (entry.time || '') : '',
+    until: entry ? (entry.until || '') : '',
   };
+  const longDate = d => fromDs(d).toLocaleDateString('en-US',
+    {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  const timeSel = styledSelect([['','All day']].concat(timeOptions(4, 22)), st.time);
   const wSel = styledSelect(allWorkoutOptions(st.workoutId), st.workoutId);
   let pickedDate = st.date;
   const dateBtn = h('button',{className:'date-btn', type:'button', onClick:e=>{
@@ -1974,10 +2154,29 @@ function scheduleSheet(prefDate, entry, prefWorkout){
     }}, l);
     dayChips.append(c);
   });
+  /* an end date only means anything for something that repeats */
+  let untilDate = st.until;
+  const untilTxt = h('span',{}, untilDate ? longDate(untilDate) : 'Never ends');
+  const clearRow = h('div',{className:'chiprow',
+    style:{marginTop:'8px', display: untilDate ? '' : 'none'}},
+    h('button',{className:'chip', onClick:e=>{
+      e.preventDefault(); untilDate = ''; untilTxt.textContent = 'Never ends';
+      clearRow.style.display = 'none';
+    }},'No end date'));
+  const untilBtn = h('button',{className:'date-btn', type:'button', onClick:e=>{
+    e.preventDefault();
+    datePicker(untilDate || pickedDate, d=>{
+      untilDate = d; untilTxt.textContent = longDate(d); clearRow.style.display = '';
+    });
+  }});
+  untilBtn.append(untilTxt, h('span',{className:'ssel-arr'},'▾'));
+  const untilWrap = h('div',{className:'field', style:{display:'none'}},
+    h('label',{},'Ends'), untilBtn, clearRow);
   const syncVis = ()=>{
     const v = freqSel.value;
     intWrap.style.display = v==='daily2' ? '' : 'none';
     dayWrap.style.display = (v==='weekly'||v==='weekly2') ? '' : 'none';
+    untilWrap.style.display = v==='none' ? 'none' : '';
   };
   syncVis();
 
@@ -1995,8 +2194,9 @@ function scheduleSheet(prefDate, entry, prefWorkout){
       id: entry ? entry.id : uid(),
       workoutId: wSel.value,
       date: pickedDate || today(),
-      time: null,
-      recur, until: null,
+      time: timeSel.value || null,
+      recur,
+      until: (v !== 'none' && untilDate) ? untilDate : null,
       exceptions: entry ? (entry.exceptions||[]) : [],
     };
     const list = db.schedule.filter(e=>e.id!==rec.id);
@@ -2008,8 +2208,9 @@ function scheduleSheet(prefDate, entry, prefWorkout){
     h('h3',{}, isEdit ? 'Edit workout' : 'Schedule workout'),
     h('div',{className:'field'}, h('label',{},'Workout'), wSel),
     h('div',{className:'field'}, h('label',{}, isEdit&&st.freq!=='none' ? 'Series start date' : 'Date'), dateBtn),
+    h('div',{className:'field'}, h('label',{},'Time'), timeSel),
     h('div',{className:'field'}, h('label',{},'Repeats'), freqSel),
-    intWrap, dayWrap,
+    intWrap, dayWrap, untilWrap,
     h('button',{className:'cta', onClick:save}, isEdit ? 'SAVE CHANGES' : 'ADD TO CALENDAR'));
 }
 
@@ -2020,7 +2221,7 @@ function eventSheet(ev){
   const back = sheet(
     h('div',{className:'kick'}, fromDs(ev.date).toLocaleDateString('en-US',{weekday:'long', month:'short', day:'numeric'}).toUpperCase() + (ev.time?' · '+fmtTime(ev.time):'')),
     h('h3',{style:{marginTop:'4px'}}, w ? w.name : 'Workout'),
-    h('div',{className:'meta'}, (w ? `${w.mins} min · ${w.focus}` : '') + ' · ' + recurLabel(e)),
+    h('div',{className:'meta'}, (w ? `${w.mins} min · ${w.focus}` : '') + ' · ' + recurLine(e)),
     w && h('div',{className:'card'},
       w.ex.map(([name,sets,reps,wt])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}${wt?` @ ${wt}kg`:''}`)))),
     ev.done
@@ -2146,7 +2347,7 @@ function SessionScreen(){
     return wrap;
   }
   wrap.append(h('div',{className:'app-bar'},
-    h('button',{className:'icon-btn', onClick:()=>confirmSheet(
+    h('button',{className:'icon-btn', 'aria-label':'Quit this workout', onClick:()=>confirmSheet(
       'Quit this workout?', 'Nothing you’ve logged in this session will be saved.', 'QUIT',
       ()=>{ stopRest(); keepAwake(false); db.live = null; STATE.session=null; render(); })},'✕'),
     h('div',{className:'title'}, s.name),
@@ -2161,7 +2362,7 @@ function SessionScreen(){
   const totalSets = s.ex.reduce((n,e)=>n+e.sets.length,0);
   const doneSets  = s.ex.reduce((n,e)=>n+e.sets.filter(x=>x.done).length,0);
   body.append(
-    h('div',{className:'prog'}, h('i',{style:{width:(doneSets/totalSets*100)+'%'}})),
+    h('div',{className:'prog'}, h('i',{style:{width:(totalSets ? doneSets/totalSets*100 : 0)+'%'}})),
     h('div',{className:'prog-lbl'},
       h('span',{}, (group.length > 1 ? 'Superset ' : 'Exercise ') + `${s.cur+1} of ${groups.length}`),
       h('span',{},`${doneSets} / ${totalSets} sets`)));
@@ -2176,7 +2377,8 @@ function SessionScreen(){
     body.append(
       h('div',{className:'exhead'},
         h('div',{className:'exname', onClick:()=>{ if(meta) exerciseSheet(meta); }}, ex.name),
-        h('button',{className:'swapbtn', title:'Swap this exercise', onClick:()=>exercisePicker(
+        h('button',{className:'swapbtn', title:'Swap this exercise', 'aria-label':'Swap this exercise',
+          onClick:()=>exercisePicker(
           picks=>swapSessionExercise(s, gi, picks[0].name),
           {single:true, title:'Swap in something else',
            empty:'PICK ONE', verb:'⇄ SWAP IT IN'})},'⇄')),
@@ -2194,20 +2396,30 @@ function SessionScreen(){
       card.innerHTML = '';
       ex.sets.forEach((set,i)=>{
         const pv = prev && prev.sets[i];
-        if(!set.weight) set.weight = target ? String(target.weight)
-          : (pv ? String(pv.w || '') : (ex.plan || ''));
+        /* seed once, not on every draw - otherwise a field you cleared on
+           purpose fills itself back in the next time anything re-renders */
+        if(!set.seeded){
+          set.seeded = true;
+          if(!set.weight) set.weight = target ? String(target.weight)
+            : (pv ? String(pv.w || '') : (ex.plan || ''));
+        }
         const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}});
         wFld.input.addEventListener('input',()=>{ set.weight=wFld.input.value; saveSession(); });
-        const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(ex.reps.replace(/\D/g,'')||'reps'), value:set.reps}});
+        /* only a plain rep count is worth suggesting: "45s" is a hold and
+           "40m" a distance, and neither belongs in the reps box */
+        const repHint = /^\d+$/.test(String(ex.reps).trim()) ? String(ex.reps).trim() : '';
+        const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(repHint||'reps'), value:set.reps}});
         rFld.input.addEventListener('input',()=>{ set.reps=rFld.input.value; saveSession(); });
         const isPr = !set.warm && best > 0 && (parseFloat(set.weight)||0) > best;
-        const tick = h('button',{className:'tick'+(set.done?' on':''), onClick:()=>{
+        const tick = h('button',{className:'tick'+(set.done?' on':''),
+          'aria-label':(set.done?'Untick set ':'Tick set ')+(i+1), onClick:()=>{
           set.done = !set.done;
           if(set.done && !set.warm && last) startRest(ex.rest); else if(!set.done) stopRest();
           saveSession(); render();
         }},'✓');
         card.append(h('div',{className:'setrow'+(set.warm?' warm':'')},
           h('button',{className:'snum'+(set.warm?' warm':''), title:'Warm-up set',
+            'aria-label':`Set ${i+1}${set.warm?', a warm-up':''} — tap to mark it a warm-up`,
             onClick:()=>{ set.warm = !set.warm; store.set('bl_warm_seen', true); saveSession(); render(); }},
           set.warm ? 'W' : 'S'+(i+1)),
           h('span',{className:'lastcell'}, pv ? h('span',{}, 'last ', h('b',{}, `${pv.w||'bw'}×${pv.r||'—'}`)) : '—',
@@ -2278,6 +2490,8 @@ function SessionScreen(){
   const dots = h('div',{className:'dots'});
   groups.forEach((g,i)=>dots.append(h('button',{
     className:'dot'+(i===s.cur?' on':(g.every(j=>s.ex[j].sets.every(x=>x.done))?' done':'')),
+    'aria-label':`Go to exercise ${i+1} of ${groups.length}`,
+    'aria-current': i===s.cur ? 'true' : null,
     onClick:()=>{ s.cur=i; render(); }})));
   body.append(dots);
   body.append(h('button',{className:'cta ghost', style:{marginTop:'12px', fontSize:'12px',
@@ -2837,7 +3051,7 @@ function HistoryScreen(){
   const wrap = h('div',{className:'screen anim-fade'});
   wrap.append(h('div',{className:'app-bar'},
     h('div',{className:'title'},'History'),
-    h('button',{className:'icon-btn', title:'Settings', onClick:settingsSheet},'⚙︎')));
+    h('button',{className:'icon-btn', title:'Settings', 'aria-label':'Settings', onClick:settingsSheet},'⚙︎')));
   const body = h('div',{className:'scrolly'});
   const logs = db.logs.slice().sort((a,b)=>(b.finishedAt||0)-(a.finishedAt||0));
   if(!logs.length){
@@ -2899,7 +3113,7 @@ function sessionCard(l, prs){
   card.append(h('div',{className:'log-h'},
     h('span',{className:'ln'}, l.name),
     h('span',{className:'ld'}, when)));
-  const nSets = (l.ex||[]).reduce((n,e)=>n+e.sets.length,0);
+  const nSets = (l.ex||[]).reduce((n,e)=>n+(e.sets||[]).length,0);
   card.append(h('div',{className:'meta'}, `${(l.ex||[]).length} exercises · ${nSets} sets · ${l.mins||0} min`));
   for(const e of (l.ex||[])){
     const t = topSet(e.sets);
@@ -2920,7 +3134,7 @@ function LibraryScreen(){
   const wrap = h('div',{className:'screen anim-fade'});
   wrap.append(h('div',{className:'app-bar'},
     h('div',{className:'title'},'Library'),
-    h('button',{className:'icon-btn', title:'Settings', onClick:settingsSheet},'⚙︎')));
+    h('button',{className:'icon-btn', title:'Settings', 'aria-label':'Settings', onClick:settingsSheet},'⚙︎')));
   const seg = h('div',{className:'cal-seg'});
   [['plans','Plans'],['exercises','Exercises'],['ask','Ask Claude']].forEach(([v,l])=>
     seg.append(h('button',{className:LIB.view===v?'on':'', onClick:()=>{LIB.view=v; render();}}, l)));
@@ -3076,6 +3290,7 @@ function plateSheet(startWeight, onUse){
   for(const p of PLATES) counts[p] = 0;
 
   let back;                                       /* assigned below; the USE button closes it */
+  let repaintTo = null;                           /* redraws the loading without touching the field */
   const seg    = h('div',{className:'cal-seg'});
   const barRow = h('div',{className:'chiprow'});
   const pane   = h('div',{});
@@ -3099,23 +3314,35 @@ function plateSheet(startWeight, onUse){
   const draw = ()=>{
     pane.innerHTML = '';
     if(mode === 'to'){
+      /* The field is built once and only the loading below it is repainted.
+         Rebuilding the input on every keystroke took the caret with it, and
+         a two-digit weight could not be typed at all. */
       const wFld = numField({min:0, step:2.5, wide:true,
         attrs:{inputmode:'decimal', value:String(total)}});
-      wFld.input.addEventListener('input',()=>{ total = parseFloat(wFld.input.value) || 0; draw(); });
       const list = h('div',{className:'card', style:{marginTop:'10px'}});
-      const b = plateBreakdown(total, bar);
-      if(!b) list.append(h('div',{className:'empty'},`That is lighter than the ${bar} kg bar.`));
-      else if(!b.plates.length) list.append(h('div',{className:'empty'},'Just the bar.'));
-      else {
-        b.plates.forEach(([p,n])=>list.append(h('div',{className:'plate'},
-          h('span',{className:'pw'}, p + ' kg'),
-          h('span',{className:'pc'}, '\u00d7 ' + n + ' a side'))));
-        if(b.left > 0) list.append(h('div',{className:'plate'},
-          h('span',{className:'pc'},'Cannot make the last'),
-          h('span',{className:'pc'}, tidy(b.left * 2) + ' kg')));
-      }
+      const paint = ()=>{
+        list.innerHTML = '';
+        const b = plateBreakdown(total, bar);
+        if(!b) list.append(h('div',{className:'empty'},`That is lighter than the ${bar} kg bar.`));
+        else if(!b.plates.length) list.append(h('div',{className:'empty'},'Just the bar.'));
+        else {
+          b.plates.forEach(([p,n])=>list.append(h('div',{className:'plate'},
+            h('span',{className:'pw'}, p + ' kg'),
+            h('span',{className:'pc'}, '\u00d7 ' + n + ' a side'))));
+          if(b.left > 0) list.append(h('div',{className:'plate'},
+            h('span',{className:'pc'},'Cannot make the last'),
+            h('span',{className:'pc'}, tidy(b.left * 2) + ' kg')));
+        }
+        drawFoot();
+      };
+      wFld.input.addEventListener('input',()=>{
+        total = parseFloat(wFld.input.value) || 0; paint();
+      });
+      repaintTo = paint;
       pane.append(h('div',{className:'field'}, h('label',{},'Target weight'), wFld), list);
+      paint();
     } else {
+      repaintTo = null;
       const list = h('div',{className:'card', style:{marginTop:'10px'}});
       PLATES.forEach(p=>{
         const f = numField({min:0, max:12, step:1, attrs:{value:String(counts[p])}});
@@ -3144,7 +3371,7 @@ function plateSheet(startWeight, onUse){
     h('button',{className:'chip'+(v===bar?' on':''), onClick:e=>{
       e.preventDefault(); bar = v; store.set('bl_bar', v);
       barRow.querySelectorAll('.chip').forEach((c,i)=>c.classList.toggle('on', [20,15,10,0][i] === v));
-      draw();
+      if(repaintTo) repaintTo(); else draw();
     }}, v ? v + ' kg bar' : 'No bar')));
 
   draw();
@@ -3299,14 +3526,15 @@ function customSheet(existing){
         const t=rows[i]; rows[i]=rows[j]; rows[j]=t; redraw(); };
       listEl.append(h('div',{className:'bx'},
         h('div',{className:'bx-grip'},
-          h('button',{disabled:i===0, onClick:()=>move(-1)},'▲'),
-          h('button',{disabled:i===rows.length-1, onClick:()=>move(1)},'▼')),
+          h('button',{disabled:i===0, 'aria-label':'Move up', onClick:()=>move(-1)},'▲'),
+          h('button',{disabled:i===rows.length-1, 'aria-label':'Move down', onClick:()=>move(1)},'▼')),
         h('div',{style:{flex:'1', minWidth:'0'}},
           h('div',{className:'bx-head'},
             h('div',{},
               h('div',{className:'bx-name'}, r.name),
               h('div',{className:'bx-mus'}, (meta?meta.muscle:'custom') + (r.timed?' · timed':''))),
-            h('button',{className:'bx-x', onClick:()=>{rows.splice(i,1); redraw();}},'✕')),
+            h('button',{className:'bx-x', 'aria-label':'Remove '+r.name,
+              onClick:()=>{rows.splice(i,1); redraw();}},'✕')),
           ctl,
           i < rows.length - 1 ? h('div',{className:'bx-link'},
             h('button',{className:r.link?'on':'', onClick:e=>{
@@ -3490,7 +3718,12 @@ function buildAsk(body){
 }
 
 /* ── Coach (Claude) ────────────────────────────────────────────────── */
-const COACH_MODEL = 'claude-opus-4-8';
+const COACH_MODEL = 'claude-opus-5';
+/* Thinking is on by default on this model and its tokens come out of the same
+   budget, so the ceiling has to leave room for an answer behind it. Coaching
+   chat does not need deep reasoning - medium effort keeps it quick and cheap. */
+const COACH_MAX_TOKENS = 8000;
+const COACH_EFFORT = 'medium';
 function weeklyVolumes(n){
   const out = [];
   for(let i = 0; i < n; i++){
@@ -3536,7 +3769,7 @@ function trainingDigest(){
   return out.join('\n').slice(0, 5000);
 }
 function coachSystemPrompt(){
-  const sched = db.schedule.slice(0,8).map(e=>{ const w=getWorkout(e.workoutId); return (w?w.name:'?')+' ('+recurLabel(e)+')'; }).join('; ') || 'nothing scheduled';
+  const sched = db.schedule.slice(0,8).map(e=>{ const w=getWorkout(e.workoutId); return (w?w.name:'?')+' ('+recurLine(e)+')'; }).join('; ') || 'nothing scheduled';
   return `You are Brologue Coach — a warm, motivating, no-nonsense fitness and nutrition coach inside the Brologue workout app. Give practical, specific, safe advice on training, meal plans, and diet. Use short sections and bullet lists; keep answers tight and actionable; plain text only (no markdown tables). Add a brief note to consult a professional for medical issues when relevant.
 
 User context — available equipment: ${db.equipment.length?db.equipment.join(', '):'bodyweight only'}. Current schedule: ${sched}. Current streak: ${streakCount()} days.
@@ -3602,7 +3835,8 @@ async function askClaude(history){
     },
     body: JSON.stringify({
       model: COACH_MODEL,
-      max_tokens: 2048,
+      max_tokens: COACH_MAX_TOKENS,
+      output_config: {effort: COACH_EFFORT},
       system: coachSystemPrompt(),
       messages: history,
     }),
@@ -3620,7 +3854,7 @@ function CoachScreen(){
   const wrap = h('div',{className:'screen'});
   wrap.append(h('div',{className:'app-bar'},
     h('div',{className:'title'},'Coach'),
-    h('button',{className:'icon-btn', title:'Settings', onClick:settingsSheet},'⚙︎')));
+    h('button',{className:'icon-btn', title:'Settings', 'aria-label':'Settings', onClick:settingsSheet},'⚙︎')));
   if(!db.apiKey) wrap.append(h('div',{className:'keynote'},
     '🔑 Demo mode — answers are canned examples. Add your own Anthropic API key in Settings ⚙︎ to chat with the real Claude. Your key stays on this device only.'));
   const chat = h('div',{className:'chat'});
@@ -3643,7 +3877,7 @@ function CoachScreen(){
     value: COACH_PREFILL,
     style:{background:'#1d1413'}});
   ta.addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); send(ta.value); } });
-  const sendBtn = h('button',{className:'send', onClick:()=>send(ta.value)},'➤');
+  const sendBtn = h('button',{className:'send', 'aria-label':'Send', onClick:()=>send(ta.value)},'➤');
   COACH_PREFILL = '';
   const inputBar = h('div',{className:'coach-input'}, ta, sendBtn);
   async function send(text){
@@ -3657,14 +3891,25 @@ function CoachScreen(){
     const chatEl = document.querySelector('.chat');
     if(chatEl){ chatEl.append(h('div',{className:'typing'},'Coach is thinking…')); chatEl.scrollTop = chatEl.scrollHeight; }
     try{
-      const apiHist = db.coach.filter(m=>m.role==='user'||m.role==='assistant').map(m=>({role:m.role, content:m.content}));
+      /* An error we printed is not something the coach said - sending it back
+         has it apologising for our network. Same-role turns are merged so
+         dropping one never leaves the history out of step. */
+      const apiHist = [];
+      for(const m of db.coach){
+        if(m.error || (m.role !== 'user' && m.role !== 'assistant')) continue;
+        const prev = apiHist[apiHist.length-1];
+        if(prev && prev.role === m.role) prev.content += '\n\n' + m.content;
+        else apiHist.push({role:m.role, content:m.content});
+      }
+      while(apiHist.length && apiHist[0].role !== 'user') apiHist.shift();
+      if(!apiHist.length) apiHist.push({role:'user', content:text});
       const {demo, text:reply} = await askClaude(apiHist);
       const hist3 = db.coach;
       hist3.push({role:'assistant', content:reply, demo});
       db.coach = hist3.slice(-24);
     }catch(err){
       const hist3 = db.coach;
-      hist3.push({role:'assistant', content:'⚠️ '+err.message+'\n\nCheck your API key in Settings, or try again.', demo:false});
+      hist3.push({role:'assistant', content:'⚠️ '+err.message+'\n\nCheck your API key in Settings, or try again.', demo:false, error:true});
       db.coach = hist3.slice(-24);
     }
     STATE.coachBusy = false; render();
@@ -3678,11 +3923,8 @@ function CoachScreen(){
 /* ── settings ──────────────────────────────────────────────────────── */
 function remindersBlock(reopen){
   const st = icsState();
-  const times = [];
-  for(let hh = 5; hh <= 21; hh++) for(const mm of ['00','30'])
-    times.push([`${String(hh).padStart(2,'0')}:${mm}`,
-      new Date(2000,0,1,hh,+mm).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})]);
-  const timeSel = styledSelect(times, reminderAt(), v=>{ store.set('bl_remind_at', v); reopen(); });
+  const timeSel = styledSelect(timeOptions(5, 21), reminderAt(),
+    v=>{ store.set('bl_remind_at', v); reopen(); });
 
   const badgeOn = store.get('bl_badge', true);
   const badgeChip = h('button',{className:'chip'+(badgeOn?' on':''), onClick:async e=>{
@@ -3768,7 +4010,8 @@ function showInstallBanner(){
         bar.remove(); STATE.deferredInstall.prompt();
         await STATE.deferredInstall.userChoice; STATE.deferredInstall=null;
       }},'INSTALL') : null,
-    h('button',{className:'icon-btn', onClick:()=>{ bar.remove(); store.set('bl_install_dismissed', true); }},'✕'));
+    h('button',{className:'icon-btn', 'aria-label':'Dismiss',
+      onClick:()=>{ bar.remove(); store.set('bl_install_dismissed', true); }},'✕'));
   document.body.append(bar);
 }
 window.addEventListener('beforeinstallprompt', e=>{
@@ -3780,6 +4023,15 @@ window.addEventListener('beforeinstallprompt', e=>{
 document.addEventListener('visibilitychange', ()=>{ if(document.hidden){ saveSession(); updateBadge(); } });
 window.addEventListener('pagehide', ()=>{ saveSession(); updateBadge(); });
 
+function updateBanner(){
+  if(document.querySelector('.install-bar.upd')) return;
+  const bar = h('div',{className:'install-bar upd'},
+    h('span',{style:{fontSize:'22px'}},'📰'),
+    h('div',{className:'t'},'A new issue of Brologue is ready.'),
+    h('button',{className:'go', onClick:()=>location.reload()},'RELOAD'),
+    h('button',{className:'icon-btn', 'aria-label':'Dismiss', onClick:()=>bar.remove()},'✕'));
+  document.body.append(bar);
+}
 function boot(){
   const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   if(standalone){
@@ -3788,7 +4040,17 @@ function boot(){
     setTimeout(()=>{ sp.style.display='none'; }, 900);
   }
   if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
+    navigator.serviceWorker.register('sw.js').then(reg=>{
+      /* the shell is served from cache, so a deployed update would otherwise
+         sit there unnoticed until the app was launched twice */
+      reg.addEventListener('updatefound', ()=>{
+        const fresh = reg.installing;
+        if(!fresh) return;
+        fresh.addEventListener('statechange', ()=>{
+          if(fresh.state === 'installed' && navigator.serviceWorker.controller) updateBanner();
+        });
+      });
+    }).catch(()=>{});
   }
   render();
   setTimeout(showInstallBanner, 2500);
