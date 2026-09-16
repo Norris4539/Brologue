@@ -1,4 +1,4 @@
-const CACHE = 'brologue-v26';
+const CACHE = 'brologue-v27';
 const SHELL = [
   './',
   './index.html',

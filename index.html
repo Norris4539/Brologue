@@ -116,6 +116,10 @@
   .bx-f{display:flex;align-items:center;gap:6px}
   .bx-f label{font-size:8.5px;font-weight:800;letter-spacing:1px;color:var(--faded);font-family:var(--small);text-transform:uppercase}
   .bx-f input{width:56px;background:var(--paper);border:1.5px solid var(--ink);color:var(--ink);font-size:13px;padding:6px 4px;text-align:center;outline:none;border-radius:0}
+  .bx-f .addwt{border:1.5px dashed var(--tan);background:none;color:var(--faded);
+    font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;padding:6px 9px}
+  .bx-f .addwt:active{background:var(--ink);color:var(--paper);border-style:solid}
 
   /* exercise picker */
   .pick-list{max-height:44dvh;overflow-y:auto;border:1.5px solid var(--ink);background:var(--paper2);margin-top:10px}
@@ -2491,10 +2495,14 @@ function SessionScreen(){
     const prev = lastFor(ex.name), best = bestFor(ex.name);
     const meta = EXERCISES.find(e=>e.name===ex.name);
     const last = pos === group.length - 1;         // rest waits for the end of the station
-    /* a hold is logged in seconds, and only carries a weight if it can be loaded:
-       a plank has no kilos, a farmer's carry does */
+    /* A hold is logged in seconds. Most are bodyweight, so the kilos are out
+       of the way until they are wanted - but a plank with a plate on your back
+       is still a plank, so any hold can be given a weight box and keeps it
+       once the workout, the history or a tap says it is loaded. */
     const timed = exTimed(ex), tgt = timed ? holdTarget(ex) : 0;
-    const loadable = !timed || isWeighted(ex.name);
+    const carries = isWeighted(ex.name) || !!ex.plan || !!ex.loaded
+      || ex.sets.some(st=>st.weight) || (prev && prev.sets.some(st=>parseFloat(st.w) > 0));
+    const loadable = !timed || carries;
     if(group.length > 1) body.append(h('div',{className:'ss-tag'},
       `${String.fromCharCode(65+pos)} · superset`));
     body.append(
@@ -2522,7 +2530,7 @@ function SessionScreen(){
         const pv = prev && prev.sets[i];
         /* seed once, not on every draw - otherwise a field you cleared on
            purpose fills itself back in the next time anything re-renders */
-        if(!set.seeded){
+        if(!set.seeded && loadable){
           set.seeded = true;
           if(!set.weight) set.weight = target ? String(target.weight)
             : (pv ? String(pv.w || '') : (ex.plan || ''));
@@ -2592,6 +2600,10 @@ function SessionScreen(){
                 + ' — goes for good.', 'REMOVE IT', dropTail);
             } else dropTail();
           }},'－ SET'),
+        !loadable ? h('button',{className:'cta ghost', style:SBTN,
+          title:'Log the weight you held',
+          onClick:()=>{ ex.loaded = true; saveSession(); render();
+            toast('Weight box added for ' + ex.name); }},'＋ WEIGHT') : null,
         loadable ? h('button',{className:'cta ghost', style:SBTN,
           /* seed from the working weight, not set 1 - set 1 is often a warm-up */
           onClick:()=>plateSheet(target ? target.weight
@@ -3659,10 +3671,17 @@ function customSheet(existing){
       const ctl = h('div',{className:'bx-ctl'},
         h('div',{className:'bx-f'}, h('label',{},'Sets'), setsFld),
         h('div',{className:'bx-f'}, h('label',{}, r.timed?'Seconds':'Reps'), repsFld));
-      if(isWeighted(r.name)){
+      /* a weight box for anything that is obviously loaded, and one tap away
+         for everything else - a weighted plank or a dipping belt is still the
+         same exercise, and the library cannot know you own a plate */
+      if(isWeighted(r.name) || r.weight !== '' || r.addWeight){
         const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:'—', value:r.weight?String(r.weight):''}});
         wFld.input.addEventListener('input',()=>r.weight=wFld.input.value);
         ctl.append(h('div',{className:'bx-f'}, h('label',{},'Kg'), wFld));
+      } else {
+        ctl.append(h('div',{className:'bx-f'},
+          h('button',{className:'addwt', 'aria-label':'Add a weight to '+r.name,
+            onClick:e=>{ e.preventDefault(); r.addWeight = true; redraw(); }},'＋ Kg')));
       }
       const restFld = numField({min:0, max:600, step:15, attrs:{value:String(r.rest)}});
       restFld.input.addEventListener('input',()=>r.rest=restFld.input.value);
