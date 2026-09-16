@@ -444,6 +444,25 @@
   .setrow input{width:64px;background:var(--paper);border:1.5px solid var(--ink);color:var(--ink);
     font-size:13px;padding:7px 8px;text-align:center;outline:none;border-radius:0}
   .setrow .unit{font-size:10px;color:var(--tan);margin-left:-4px;font-style:italic}
+  .setrow .holdbtn{width:30px;height:30px;flex:none;border:1.5px solid var(--ink);
+    background:var(--paper2);display:flex;align-items:center;justify-content:center;
+    font-size:11px;color:var(--ink);padding:0}
+  .setrow .holdbtn:active{background:var(--ink);color:var(--paper)}
+  .setrow.timed .lastcell{min-width:34px}
+  .setrow.timed.loaded .lastcell{min-width:0}
+  /* on a narrow phone a loaded hold has no room for the last-time column;
+     the line above the card still carries it */
+  @media (max-width:349px){
+    .setrow.timed.loaded .lastcell{display:none}
+    .setrow.timed.loaded{gap:3px}
+    .setrow.timed.loaded .snum{width:18px}
+    .setrow.timed.loaded .stp input{width:32px}
+    .setrow.timed.loaded .stp-b{width:18px}
+  }
+  .setrow.timed.loaded .stp input{width:38px}
+  .setrow.timed.loaded .stp-b{width:20px}
+  .rest-bar.hold{background:var(--red2)}
+  .rest-bar.hold .rest-lbl{color:#f0d9c9}
   .tick{width:30px;height:30px;border:1.5px solid var(--ink);display:flex;align-items:center;
     justify-content:center;font-size:15px;color:transparent;margin-left:auto;flex:none;background:var(--paper2)}
   .tick.on{background:var(--red);border-color:var(--ink);color:var(--paper)}
@@ -654,7 +673,7 @@ async function keepAwake(on){
 document.addEventListener('visibilitychange', ()=>{
   if(document.hidden) return;
   if(STATE.session && !STATE.session.finished) keepAwake(true);
-  syncRest();
+  syncRest(); syncHold();
 });
 
 /* The chime has to come out of a context opened by a tap: one created when
@@ -729,9 +748,93 @@ function armRest(endsAt, total){
 }
 function startRest(secs){
   secs = parseInt(secs) || 0;
+  stopHold();                                /* a rest and a hold are never both running */
   if(secs <= 0) return stopRest();
   primeAudio();                              /* we are inside the tap that started it */
   armRest(Date.now() + secs * 1000, secs);
+}
+
+/* ── the hold ───────────────────────────────────────────────────────
+   A plank is not three reps of anything: what it wants is a clock. The
+   same deadline the rest timer uses, pointed at one set - when it runs
+   out the seconds are written into that set, the set is ticked, and the
+   rest that follows starts on its own. ────────────────────────────── */
+let HOLD = null;
+function stopHold(){
+  if(HOLD){ clearInterval(HOLD.iv); HOLD.el.remove(); HOLD = null; }
+  if(!REST) document.body.classList.remove('rest-on');
+  try{ localStorage.removeItem('bl_hold'); }catch(e){}
+  delete _memo['bl_hold'];
+}
+function logHold(exIdx, setIdx, secs){
+  const s = STATE.session;
+  const ex = s && s.ex[exIdx];
+  const set = ex && ex.sets[setIdx];
+  if(!set) return stopHold();
+  stopHold();
+  set.reps = String(Math.max(0, Math.round(secs)));
+  set.seeded = true; set.timed = true; set.done = true;
+  saveSession();
+  /* the rest belongs to the end of the station, exactly as a ticked set */
+  const grp = sessionGroups(s.ex).find(g=>g.includes(exIdx)) || [exIdx];
+  const isLast = grp[grp.length-1] === exIdx;
+  render();
+  if(!set.warm && isLast) startRest(ex.rest);
+}
+function armHold(endsAt, total, exIdx, setIdx){
+  stopRest(); stopHold();
+  const s = STATE.session;
+  const ex = s && s.ex[exIdx];
+  if(!ex || !ex.sets[setIdx] || endsAt - Date.now() <= 0) return;
+  store.set('bl_hold', {endsAt, total, exIdx, setIdx});
+  const t = h('div',{className:'rest-t'});
+  const prog = h('div',{className:'rest-prog'});
+  const left = ()=>Math.max(0, Math.round((endsAt - Date.now()) / 1000));
+  const paint = ()=>{
+    const l = left();
+    t.textContent = secLabel(l);
+    prog.style.width = Math.max(0, Math.min(100, (l/total)*100)) + '%';
+    return l;
+  };
+  const el = h('div',{className:'rest-bar hold'}, prog,
+    h('div',{},
+      h('div',{className:'rest-lbl'}, `Hold · ${ex.name} · set ${setIdx+1}`), t),
+    h('div',{style:{marginLeft:'auto', display:'flex', gap:'8px'}},
+      h('button',{onClick:()=>{
+        endsAt += 10000; total = Math.max(total, Math.ceil((endsAt - Date.now())/1000));
+        store.set('bl_hold', {endsAt, total, exIdx, setIdx}); paint();
+      }},'+10s'),
+      /* stopping early is still a hold - it logs what you actually held */
+      h('button',{onClick:()=>logHold(exIdx, setIdx, total - left())},'Done'),
+      h('button',{'aria-label':'Cancel the hold', onClick:stopHold},'✕')));
+  paint();
+  document.body.append(el);
+  document.body.classList.add('rest-on');
+  HOLD = { el, paint, iv: setInterval(()=>{
+    if(paint() <= 0){ restChime(); toast('Time — set logged'); logHold(exIdx, setIdx, total); }
+  }, 250) };
+}
+function startHold(exIdx, setIdx, secs){
+  secs = parseInt(secs) || 0;
+  if(secs <= 0) return;
+  primeAudio();
+  armHold(Date.now() + secs * 1000, secs, exIdx, setIdx);
+}
+function syncHold(){
+  if(HOLD){
+    if(HOLD.paint() <= 0){
+      const st = store.get('bl_hold', null);
+      restChime(); toast('Time — set logged');
+      if(st) logHold(st.exIdx, st.setIdx, st.total);
+    }
+    return;
+  }
+  const st = store.get('bl_hold', null);
+  if(!st || !st.endsAt) return;
+  if(!STATE.session || STATE.session.finished) return stopHold();
+  /* it ran out while the app was away: the hold was held, so log it */
+  if(st.endsAt - Date.now() <= 0){ restChime(); return logHold(st.exIdx, st.setIdx, st.total); }
+  armHold(st.endsAt, st.total, st.exIdx, st.setIdx);
 }
 /* coming back to the app: catch up the clock, or pick the rest back up */
 function syncRest(){
@@ -1476,9 +1579,25 @@ function topSet(sets){
   for(const st of workingSets(sets)) if(!best || (parseFloat(st.w)||0) > (parseFloat(best.w)||0)) best = st;
   return best;
 }
-function setLabel(st){
+function secLabel(n){
+  n = Math.max(0, Math.round(parseFloat(n) || 0));
+  return n >= 60 ? Math.floor(n/60) + ':' + String(n%60).padStart(2,'0') : n + 's';
+}
+/* A hold is logged in seconds, so it is written out in seconds. Logs made
+   before this carry no flag, so the caller passes what it knows. */
+function setLabel(st, timed){
   const w = parseFloat(st.w);
+  if(timed || st.t) return secLabel(st.r) + (isNaN(w) || !w ? '' : ' · ' + w + ' kg');
   return (isNaN(w) || !w ? 'bodyweight' : w+' kg') + ' × ' + (st.r || '—');
+}
+/* The library flag settles most of them; a spec like "40s" settles the rest,
+   because HIIT prescribes holds of lifts that are normally counted in reps. */
+function exTimed(ex){
+  return !!ex && (/s$/i.test(String(ex.reps == null ? '' : ex.reps).trim()) || isTimed(ex.name));
+}
+function holdTarget(ex){
+  const n = parseInt(String((ex && ex.reps) || '').replace(/[^\d]/g, ''), 10);
+  return n > 0 ? n : 30;
 }
 function sessionVolume(l){
   let v = 0;
@@ -2020,7 +2139,7 @@ function TodayScreen(){
       + `started ${new Date(live.startedAt).toLocaleTimeString('en-US',{hour:'numeric', minute:'2-digit'})}`),
     h('div',{className:'btnrow'},
       h('button',{className:'cta', style:{flex:2}, onClick:()=>{
-        STATE.session = live; primeAudio(); render(); syncRest(); }},'RESUME →'),
+        STATE.session = live; primeAudio(); render(); syncRest(); syncHold(); }},'RESUME →'),
       h('button',{className:'cta ghost', style:{flex:1}, onClick:()=>{
         confirmSheet('Discard it?','The sets you logged in that session will not be saved.','DISCARD',
           ()=>{ db.live = null; render(); });
@@ -2349,7 +2468,7 @@ function SessionScreen(){
   wrap.append(h('div',{className:'app-bar'},
     h('button',{className:'icon-btn', 'aria-label':'Quit this workout', onClick:()=>confirmSheet(
       'Quit this workout?', 'Nothing you’ve logged in this session will be saved.', 'QUIT',
-      ()=>{ stopRest(); keepAwake(false); db.live = null; STATE.session=null; render(); })},'✕'),
+      ()=>{ stopRest(); stopHold(); keepAwake(false); db.live = null; STATE.session=null; render(); })},'✕'),
     h('div',{className:'title'}, s.name),
     h('span',{style:{width:'34px'}})));
   const body = h('div',{className:'scrolly'});
@@ -2372,6 +2491,10 @@ function SessionScreen(){
     const prev = lastFor(ex.name), best = bestFor(ex.name);
     const meta = EXERCISES.find(e=>e.name===ex.name);
     const last = pos === group.length - 1;         // rest waits for the end of the station
+    /* a hold is logged in seconds, and only carries a weight if it can be loaded:
+       a plank has no kilos, a farmer's carry does */
+    const timed = exTimed(ex), tgt = timed ? holdTarget(ex) : 0;
+    const loadable = !timed || isWeighted(ex.name);
     if(group.length > 1) body.append(h('div',{className:'ss-tag'},
       `${String.fromCharCode(65+pos)} · superset`));
     body.append(
@@ -2382,10 +2505,11 @@ function SessionScreen(){
           picks=>swapSessionExercise(s, gi, picks[0].name),
           {single:true, title:'Swap in something else',
            empty:'PICK ONE', verb:'⇄ SWAP IT IN'})},'⇄')),
-      h('div',{className:'extag'}, (meta?meta.muscle+' · ':'') + `target ${ex.reps}`
+      h('div',{className:'extag'}, (meta?meta.muscle+' · ':'')
+        + (timed ? `hold ${secLabel(tgt)}` : `target ${ex.reps}`)
         + (ex.rest?` · rest ${ex.rest}s`:'') + (ex.added?' · added':'')));
     if(prev) body.append(h('div',{className:'lastline'},
-      `Last time · ${prev.sets.map(setLabel).join(', ')}`));
+      `Last time · ${prev.sets.map(st=>setLabel(st, timed)).join(', ')}`));
     const target = overloadTarget(ex.name, ex.reps);
     if(target) body.append(h('div',{className:'target '+target.kind},
       h('span',{className:'tw'}, (target.kind==='up' ? '↑ ' : target.kind==='back' ? '↓ ' : '→ ') + target.weight + ' kg'),
@@ -2403,28 +2527,45 @@ function SessionScreen(){
           if(!set.weight) set.weight = target ? String(target.weight)
             : (pv ? String(pv.w || '') : (ex.plan || ''));
         }
-        const wFld = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}});
-        wFld.input.addEventListener('input',()=>{ set.weight=wFld.input.value; saveSession(); });
+        const wFld = loadable ? numField({min:0, step:2.5,
+          attrs:{inputmode:'decimal', placeholder:pv?String(pv.w||'kg'):'kg', value:set.weight}}) : null;
+        if(wFld) wFld.input.addEventListener('input',()=>{ set.weight=wFld.input.value; saveSession(); });
         /* only a plain rep count is worth suggesting: "45s" is a hold and
            "40m" a distance, and neither belongs in the reps box */
         const repHint = /^\d+$/.test(String(ex.reps).trim()) ? String(ex.reps).trim() : '';
-        const rFld = numField({min:0, step:1, attrs:{placeholder:pv?String(pv.r||''):(repHint||'reps'), value:set.reps}});
+        const rFld = numField({min:0, step: timed ? 5 : 1,
+          attrs:{inputmode:'numeric',
+            placeholder: timed ? String(tgt) : (pv?String(pv.r||''):(repHint||'reps')),
+            value:set.reps}});
         rFld.input.addEventListener('input',()=>{ set.reps=rFld.input.value; saveSession(); });
+        /* the clock starts from what is in the box, so an edited hold is honoured */
+        const holdBtn = timed && !set.done ? h('button',{className:'holdbtn',
+          'aria-label':`Start the hold for set ${i+1}`,
+          title:'Start the clock',
+          onClick:()=>startHold(gi, i, parseInt(rFld.input.value) || tgt)},'▶') : null;
         const isPr = !set.warm && best > 0 && (parseFloat(set.weight)||0) > best;
         const tick = h('button',{className:'tick'+(set.done?' on':''),
           'aria-label':(set.done?'Untick set ':'Tick set ')+(i+1), onClick:()=>{
           set.done = !set.done;
-          if(set.done && !set.warm && last) startRest(ex.rest); else if(!set.done) stopRest();
+          if(set.done && timed){
+            /* ticked by hand rather than held: take the box, or the target */
+            if(!set.reps) set.reps = String(tgt);
+            set.timed = true;
+          }
+          if(set.done && !set.warm && last) startRest(ex.rest);
+          else if(!set.done){ stopRest(); stopHold(); }
           saveSession(); render();
         }},'✓');
-        card.append(h('div',{className:'setrow'+(set.warm?' warm':'')},
+        card.append(h('div',{className:'setrow'+(set.warm?' warm':'')
+          +(timed?' timed':'')+(timed && loadable ? ' loaded':'')},
           h('button',{className:'snum'+(set.warm?' warm':''), title:'Warm-up set',
             'aria-label':`Set ${i+1}${set.warm?', a warm-up':''} — tap to mark it a warm-up`,
             onClick:()=>{ set.warm = !set.warm; store.set('bl_warm_seen', true); saveSession(); render(); }},
           set.warm ? 'W' : 'S'+(i+1)),
-          h('span',{className:'lastcell'}, pv ? h('span',{}, 'last ', h('b',{}, `${pv.w||'bw'}×${pv.r||'—'}`)) : '—',
+          h('span',{className:'lastcell'},
+            pv ? h('span',{}, 'last ', h('b',{}, timed ? secLabel(pv.r) : `${pv.w||'bw'}×${pv.r||'—'}`)) : '—',
             (isPr && set.done) ? h('span',{className:'prtag'},'PR') : null),
-          wFld, rFld, tick));
+          wFld, rFld, holdBtn, tick));
       });
       /* the last set is the one a stray tap just added, so that is the one
          that goes - unless it already carries logged work, which gets a prompt */
@@ -2446,16 +2587,17 @@ function SessionScreen(){
               const w = parseFloat(tail.weight);
               confirmSheet('Drop the last set?',
                 `${tail.warm ? 'The warm-up' : 'Set ' + ex.sets.length} — `
-                + (isNaN(w) || !w ? 'bodyweight' : w + ' kg') + ' × ' + (tail.reps || '—')
+                + (timed ? secLabel(tail.reps)
+                         : (isNaN(w) || !w ? 'bodyweight' : w + ' kg') + ' × ' + (tail.reps || '—'))
                 + ' — goes for good.', 'REMOVE IT', dropTail);
             } else dropTail();
           }},'－ SET'),
-        h('button',{className:'cta ghost', style:SBTN,
+        loadable ? h('button',{className:'cta ghost', style:SBTN,
           /* seed from the working weight, not set 1 - set 1 is often a warm-up */
           onClick:()=>plateSheet(target ? target.weight
             : Math.max(0, ...ex.sets.filter(x=>!x.warm).map(x=>parseFloat(x.weight)||0)),
             w=>{ ex.sets.forEach(st=>{ if(!st.done) st.weight = String(w); });
-                 saveSession(); render(); toast(`Sets set to ${w} kg`); })},'⚖ PLATES')));
+                 saveSession(); render(); toast(`Sets set to ${w} kg`); })},'⚖ PLATES') : null));
       if(pos === 0 && !store.get('bl_warm_seen', false))
         card.append(h('div',{className:'hintline'},'Tap a set number to mark it a warm-up.'));
     };
@@ -2518,13 +2660,17 @@ function noteSheet(s){
 
 function finishSession(s){
   const save = ()=>{
-    stopRest();
+    stopRest(); stopHold();
     const logs = db.logs;
     logs.push({id:uid(), date:s.date, entryId:s.entryId, workoutId:s.workoutId, name:s.name,
       finishedAt:Date.now(), mins:Math.round((Date.now()-s.startedAt)/60000),
       notes:s.notes || '',
-      ex:s.ex.map(e=>({name:e.name, feel:e.feel || null,
-        sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps, warm:x.warm||undefined}))}))});
+      ex:s.ex.map(e=>{
+        const tmd = exTimed(e) || undefined;
+        return {name:e.name, feel:e.feel || null,
+          sets:e.sets.filter(x=>x.done).map(x=>({w:x.weight, r:x.reps,
+            warm:x.warm||undefined, t:tmd}))};
+      })});
     db.logs = logs;
     if(STORAGE_FULL){
       /* the write failed - say so instead of losing the session silently */
@@ -3122,7 +3268,7 @@ function sessionCard(l, prs){
     card.append(h('div',{className:'log-e'},
       h('span',{}, e.name, isPr ? h('span',{className:'prtag'},'PR') : null,
         e.feel ? h('span',{className:'log-feel'}, e.feel) : null),
-      h('span',{className:'lw'}, setLabel(t))));
+      h('span',{className:'lw'}, setLabel(t, isTimed(e.name)))));
   }
   if(l.notes) card.append(h('div',{className:'log-note'}, '“' + l.notes + '”'));
   return card;
@@ -3603,10 +3749,14 @@ function exerciseSheet(ex){
     oneRmChart(ex.name),
     hs.length
       ? h('div',{},
-          h('div',{className:'log-e'}, h('span',{},'Best set'), h('span',{className:'lw'}, best ? best+' kg' : '—')),
+          h('div',{className:'log-e'}, h('span',{}, ex.timed ? 'Longest hold' : 'Best set'),
+            h('span',{className:'lw'}, ex.timed
+              ? secLabel(Math.max(0, ...hs.flatMap(x=>x.sets.map(st=>parseFloat(st.r)||0))))
+              : (best ? best+' kg' : '—'))),
           h('div',{className:'log-e'}, h('span',{},'Last done'),
             h('span',{className:'lw'}, fromDs(last.date).toLocaleDateString('en-US',{day:'numeric', month:'short'}))),
-          h('div',{className:'log-e'}, h('span',{},'Last session'), h('span',{className:'lw'}, last.sets.map(setLabel).join(', '))),
+          h('div',{className:'log-e'}, h('span',{},'Last session'),
+            h('span',{className:'lw'}, last.sets.map(st=>setLabel(st, !!ex.timed)).join(', '))),
           h('div',{className:'log-e'}, h('span',{},'Sessions logged'), h('span',{className:'lw'}, String(hs.length))))
       : h('div',{className:'empty', style:{textAlign:'left', padding:'6px 0'}},'You haven’t logged this one yet.'),
     h('button',{className:'cta ghost', onClick:()=>{
