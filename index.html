@@ -93,10 +93,33 @@
   .mini-dow{color:var(--tan);font-size:9px;font-weight:800;padding-bottom:5px;font-family:var(--small)}
   .mini-d{color:var(--ink);font-size:11.5px;padding:6px 0;position:relative;cursor:pointer;font-weight:600}
   .mini-d.dim{color:var(--pale)}
-  .mini-d.ev::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:4px;height:4px;background:var(--red)}
-  .mini-d.done::after{background:var(--tan)}
+  /* one mark for the plan and one for the fact: hollow means still owed,
+     filled means it happened. A day carrying both shows both. */
+  .mini-d.ev::before{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);
+    width:5px;height:5px;border:1.5px solid var(--red);background:none}
+  .mini-d.did::after{content:'';position:absolute;bottom:2px;left:50%;transform:translateX(-50%);
+    width:5px;height:5px;background:var(--ink)}
+  .mini-d.ev.did::before{transform:translateX(-125%)}
+  .mini-d.ev.did::after{transform:translateX(25%)}
   .mini-d.today{background:var(--ink);color:var(--paper);font-weight:900}
-  .mini-d.today::after{background:var(--paper)}
+  .mini-d.today.ev::before{border-color:var(--paper)}
+  .mini-d.today.did::after{background:var(--paper)}
+  .mini-key{display:flex;justify-content:center;gap:14px;margin-top:9px;padding-top:8px;
+    border-top:1px solid var(--line);font-family:var(--small);font-size:8px;font-weight:700;
+    letter-spacing:1.2px;text-transform:uppercase;color:var(--tan)}
+  .mini-key i{display:inline-block;width:6px;height:6px;vertical-align:1px;margin-right:5px}
+  .mini-key .k-did i{background:var(--ink)}
+  .mini-key .k-ev i{border:1.5px solid var(--red)}
+  /* the log, said on the day it happened */
+  .didbar{display:flex;align-items:center;gap:10px;border:2px solid var(--done);background:var(--paper2);
+    padding:9px 11px;margin-top:12px;width:100%;text-align:left}
+  .didbar .dbt{font-family:var(--wood);font-size:20px;color:var(--done);line-height:1}
+  .didbar .dbk{font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:2px;
+    text-transform:uppercase;color:var(--done)}
+  .didbar .dbn{font-family:var(--wood);font-size:18px;letter-spacing:.5px;text-transform:uppercase;margin-top:1px}
+  .didbar .dbm{font-size:11px;color:var(--faded);font-style:italic}
+  .didbar .dbg{margin-left:auto;font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--red);white-space:nowrap}
 
   /* day sheet */
   .day-ev{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 2px;border-bottom:1px dotted var(--tan);cursor:pointer}
@@ -2150,6 +2173,25 @@ function TodayScreen(){
       }},'DISCARD'))));
   const streak = streakCount();
   const quote = QUOTES[(new Date().getDate() + new Date().getMonth()) % QUOTES.length];
+  /* training with nothing scheduled used to leave Today calling it a rest day */
+  const didToday = db.logs.filter(l=>l.date === todayStr).sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0));
+  const sumSets = l => (l.ex||[]).reduce((n,e)=>n+(e.sets||[]).length, 0);
+  const logLine = l => `${(l.ex||[]).length} exercise${(l.ex||[]).length===1?'':'s'} · `
+    + `${sumSets(l)} set${sumSets(l)===1?'':'s'}` + (l.mins ? ` · ${l.mins} min` : '');
+  /* the strip names the session only when the headline is not already it */
+  const didStrip = (kick, l, note)=>h('button',{className:'didbar', onClick:()=>daySheet(todayStr)},
+    h('span',{className:'dbt'},'✓'),
+    h('span',{},
+      h('span',{className:'dbk', style:{display:'block'}}, kick),
+      didToday.length > 1
+        ? h('span',{className:'dbm', style:{display:'block'}},
+            `${didToday.length} sessions — ` + didToday.map(x=>x.name).join(', '))
+        : note
+          ? h('span',{className:'dbm', style:{display:'block'}}, note)
+          : h('span',{},
+              h('span',{className:'dbn', style:{display:'block'}}, l.name),
+              h('span',{className:'dbm', style:{display:'block'}}, logLine(l)))),
+    h('span',{className:'dbg'},'See →'));
 
   if(next && next.workout){
     const w = next.workout;
@@ -2163,12 +2205,30 @@ function TodayScreen(){
         w.ex.map(([name,sets,reps,wt])=>h('div',{className:'exrow'}, h('span',{},name), h('span',{className:'set'},`${sets} × ${reps}${wt?` @ ${wt}kg`:''}`)))),
       h('button',{className:'cta'+(next.done?' ghost':''), onClick:()=>startSession(next)},
         ctaLabel(w, next.done)));
+    if(didToday.length) body.append(didStrip('Logged today', didToday[didToday.length-1]));
     const rest = evs.filter(e=>e!==next);
     if(rest.length){
       body.append(h('div',{className:'sl'},'Also today'));
       for(const e of rest) body.append(h('div',{className:'card', style:{marginTop:'8px', cursor:'pointer'}, onClick:()=>eventSheet(e)},
         h('div',{className:'exrow'}, h('span',{}, (e.done?'✓ ':'') + (e.workout ? e.workout.name : '?')), h('span',{className:'set'}, e.time ? fmtTime(e.time) : ''))));
     }
+  } else if(didToday.length){
+    const l = didToday[didToday.length-1];
+    body.append(
+      h('div',{className:'h1'}, l.name),
+      h('div',{className:'meta'}, logLine(l)),
+      h('div',{className:'mot'},
+        h('span',{className:'streak'}, `🔥 ${streak}-day streak`),
+        h('span',{className:'quote'}, quote)),
+      didStrip('Done for today', l, 'Nothing was scheduled — you trained anyway.'),
+      h('div',{className:'card'},
+        (l.ex||[]).map(e=>{
+          const t = topSet(e.sets || []);
+          return t ? h('div',{className:'exrow'}, h('span',{}, e.name),
+            h('span',{className:'set'}, setLabel(t, isTimed(e.name)))) : null;
+        })),
+      h('button',{className:'cta ghost', onClick:chooseSheet},'GO AGAIN →'),
+      h('button',{className:'cta ghost', onClick:()=>scheduleSheet(todayStr)},'SCHEDULE FOR LATER'));
   } else {
     body.append(
       h('div',{className:'h1'},'Rest Day'),
@@ -2198,6 +2258,8 @@ function MiniMonth(){
     h('button',{className:'icon-btn', 'aria-label':'Next month',
       onClick:()=>{STATE.miniDate=new Date(yr,mo+1,1); render();}},'›')));
   const grid = h('div',{className:'mini-grid'});
+  /* one pass over the log; the calendar used to know only what was planned */
+  const trained = new Set(db.logs.map(l=>l.date));
   DOW.forEach(dw=>grid.append(h('div',{className:'mini-dow'}, dw[0])));
   const first = new Date(yr,mo,1); let sdow = first.getDay(); sdow = sdow===0?6:sdow-1;
   const dim = new Date(yr,mo+1,0).getDate(), prevDim = new Date(yr,mo,0).getDate();
@@ -2208,19 +2270,32 @@ function MiniMonth(){
   for(const {date,other} of cells){
     const s = ds(date);
     const evs = other?[]:eventsForDate(s);
-    const cls = 'mini-d'+(other?' dim':'')+(s===today()?' today':'')+(evs.length?(evs.every(e=>e.done)?' ev done':' ev'):'');
+    const owed = evs.some(e=>!e.done);              // scheduled and still not done
+    const did  = !other && trained.has(s);          // a session was logged, plan or no plan
+    const cls = 'mini-d'+(other?' dim':'')+(s===today()?' today':'')
+      +(owed?' ev':'')+(did?' did':'');
     grid.append(h('div',{className:cls, onClick:()=>daySheet(s)}, date.getDate()));
   }
   box.append(grid);
+  box.append(h('div',{className:'mini-key'},
+    h('span',{className:'k-did'}, h('i',{}), 'Trained'),
+    h('span',{className:'k-ev'}, h('i',{}), 'Scheduled')));
   return box;
 }
 
 /* ── day sheet (mini calendar tap) ─────────────────────────────────── */
+/* The plan and the record are two different things and the day had both, so
+   the sheet shows both: what was on the bill, and what actually happened -
+   including a session that was never scheduled at all. */
 function daySheet(dateStr){
   const evs = eventsForDate(dateStr);
+  const logs = db.logs.filter(l=>l.date === dateStr).sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0));
+  const prs = logs.length ? prMap(db.logs) : null;
+  const head = evs.length ? 'The day’s iron'
+    : (logs.length ? 'Nothing was scheduled' : 'Nothing on the bill');
   const back = sheet(
     h('div',{className:'kick'}, fromDs(dateStr).toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'}).toUpperCase()),
-    h('h3',{style:{marginTop:'4px'}}, evs.length ? 'The day’s iron' : 'Nothing on the bill'),
+    h('h3',{style:{marginTop:'4px'}}, head),
     evs.length
       ? h('div',{className:'card', style:{margin:'14px 0 0'}}, evs.map(ev=>
           h('div',{className:'day-ev'+(ev.done?' done':''), onClick:()=>{back.remove(); eventSheet(ev);}},
@@ -2228,7 +2303,10 @@ function daySheet(dateStr){
               h('div',{className:'dn'}, (ev.done?'✓ ':'')+(ev.workout?ev.workout.name:'?')),
               h('div',{className:'dm'}, recurLine(ev.entry))),
             h('span',{className:'dt'}, ev.time?fmtTime(ev.time):''))))
-      : h('div',{className:'empty'},'A rest day — or an opportunity.'),
+      : null,
+    logs.length ? h('div',{className:'sl'},'What you did') : null,
+    h('div',{}, logs.map(l=>sessionCard(l, prs))),
+    (!evs.length && !logs.length) ? h('div',{className:'empty'},'A rest day — or an opportunity.') : null,
     h('button',{className:'cta', onClick:()=>{back.remove(); scheduleSheet(dateStr);}},'＋ SCHEDULE WORKOUT'));
 }
 
