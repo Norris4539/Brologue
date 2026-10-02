@@ -707,27 +707,61 @@ document.addEventListener('visibilitychange', ()=>{
    the timer ends starts suspended on iOS and never makes a sound. Ticking a
    set is that tap, so the context is opened there and kept. */
 let AUDIO = null;
+/* resume() hands back a promise that can reject - on a context the browser has
+   closed, say - and an uncaught one surfaces as a page error */
+function wake(){
+  try{
+    if(AUDIO && AUDIO.state === 'suspended'){
+      const r = AUDIO.resume();
+      if(r && r.catch) r.catch(()=>{});
+    }
+  }catch(e){}
+}
 function primeAudio(){
   try{
     const AC = window.AudioContext || window.webkitAudioContext;
     if(!AC) return;
     if(!AUDIO) AUDIO = new AC();
-    if(AUDIO.state === 'suspended') AUDIO.resume();
+    wake();
   }catch(e){ AUDIO = null; }
+}
+/* The bell is struck, not beeped: a fundamental with four inharmonic partials
+   above it, each decaying faster than the one below, and a scrape of filtered
+   noise where the clapper lands. Two strikes, as a ringside bell is rung. */
+const BELL_PARTIALS = [[1, 1], [2.01, .6], [2.98, .4], [4.17, .25], [5.43, .15]];
+function bellStrike(t0, f, dur, peak){
+  BELL_PARTIALS.forEach(([mult, amp], i)=>{
+    const o = AUDIO.createOscillator(), g = AUDIO.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(f * mult, t0);
+    const d = dur * (1 - i * 0.13);          /* the higher it is, the sooner it goes */
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak * amp), t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + d);
+    o.connect(g); g.connect(AUDIO.destination);
+    o.start(t0); o.stop(t0 + d + 0.02);
+  });
+  const n = Math.ceil(AUDIO.sampleRate * 0.03);
+  const buf = AUDIO.createBuffer(1, n, AUDIO.sampleRate);
+  const ch = buf.getChannelData(0);
+  for(let i = 0; i < n; i++) ch[i] = Math.random() * 2 - 1;
+  const src = AUDIO.createBufferSource(); src.buffer = buf;
+  const bp = AUDIO.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = f * 4; bp.Q.value = 2;
+  const ng = AUDIO.createGain();
+  ng.gain.setValueAtTime(Math.max(0.0002, peak * 0.5), t0);
+  ng.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.03);
+  src.connect(bp); bp.connect(ng); ng.connect(AUDIO.destination);
+  src.start(t0); src.stop(t0 + 0.03);
 }
 function restChime(){
   try{ if(navigator.vibrate) navigator.vibrate([120,70,120]); }catch(e){}
   try{
     if(!AUDIO) return;                       /* never opened by a tap - stay quiet */
-    if(AUDIO.state === 'suspended') AUDIO.resume();
-    const o = AUDIO.createOscillator(), g = AUDIO.createGain();
-    o.type = 'square'; o.frequency.value = 784;
-    o.connect(g); g.connect(AUDIO.destination);
-    const t0 = AUDIO.currentTime;
-    g.gain.setValueAtTime(0.0001, t0);
-    g.gain.exponentialRampToValueAtTime(0.18, t0 + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55);
-    o.start(); o.stop(t0 + 0.55);
+    wake();
+    const t0 = AUDIO.currentTime + 0.02;
+    bellStrike(t0, 620, 1.5, 0.099);
+    bellStrike(t0 + 0.17, 620, 1.9, 0.108);
   }catch(e){}
 }
 
@@ -2274,7 +2308,8 @@ function MiniMonth(){
     const did  = !other && trained.has(s);          // a session was logged, plan or no plan
     const cls = 'mini-d'+(other?' dim':'')+(s===today()?' today':'')
       +(owed?' ev':'')+(did?' did':'');
-    grid.append(h('div',{className:cls, onClick:()=>daySheet(s)}, date.getDate()));
+    /* the date on the cell: two adjacent months can show the same number */
+    grid.append(h('div',{className:cls, 'data-d':s, onClick:()=>daySheet(s)}, date.getDate()));
   }
   box.append(grid);
   box.append(h('div',{className:'mini-key'},
