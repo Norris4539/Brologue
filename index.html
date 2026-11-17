@@ -287,6 +287,31 @@
   .hist .hd{color:var(--tan);font-weight:700;letter-spacing:1px;text-transform:uppercase}
   .hist .hv{font-weight:700;font-variant-numeric:tabular-nums}
   .hist .hc{color:var(--faded);width:56px;text-align:right;font-variant-numeric:tabular-nums}
+  .hist .hx{color:var(--tan);font-size:12px;line-height:1;padding:0 2px;background:none;border:0;flex:none}
+  .hist .hx:active{color:var(--red)}
+  /* ── fixing a logged session ── */
+  .log-h .ld .pen{color:var(--tan);margin-left:5px}
+  .edx{margin-top:14px;border-top:1.5px solid var(--ink);padding-top:9px}
+  .edx:first-of-type{border-top:0;padding-top:0}
+  .edx-h{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  .edx-n{font-family:var(--wood);font-size:18px;letter-spacing:.5px;text-transform:uppercase;
+    line-height:1.05;flex:1;min-width:0}
+  .edx-x{color:var(--red);font-size:14px;padding:2px 6px;flex:none}
+  .edx-u{display:flex;gap:4px;justify-content:flex-end;font-family:var(--small);font-size:7px;
+    font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:var(--tan);margin:5px 0 1px}
+  .edx-u span{width:92px;text-align:center;flex:none}
+  .edrow{display:flex;align-items:center;gap:4px;padding:4px 0}
+  .edrow .snum{width:22px;padding:0;flex:none;text-align:left;font-size:10px;font-weight:800;
+    color:var(--tan);font-family:var(--small);background:none;border:0}
+  .edrow .snum.warm{color:var(--red)}
+  .edrow .stp{flex:none}
+  .edrow .stp input{width:46px}
+  .edrow .stp-b{width:23px}
+  .edrow .drop{width:28px;height:28px;flex:none;border:1.5px solid var(--pale);color:var(--tan);
+    background:none;font-size:13px;line-height:1;margin-left:auto}
+  .edrow .drop:active{background:var(--red);color:var(--paper);border-color:var(--red)}
+  @media (max-width:349px){ .edrow .stp input{width:38px} .edrow .stp-b{width:20px} .edx-u span{width:78px} }
+
   .mrow{padding:9px 0;border-bottom:1px dotted var(--pale)}
   .mrow:last-child{border-bottom:0}
   .mtop{display:flex;align-items:center;gap:8px}
@@ -2096,7 +2121,33 @@ function toast(msg){
    closes it, and so does the phone's back button - each sheet pushes a
    history entry and takes it back on the way out. Every caller still just
    calls back.remove(), which is why the teardown hangs off remove itself. */
-let SHEET_DEPTH = 0, SHEET_POPPING = false, SHEET_UNWIND = 0;
+/* ONE history entry covers however many sheets are stacked, and it is only
+   handed back a tick after the last one closes. A sheet that closes itself
+   to open another - the day sheet into an event, the tape into taking a set,
+   the box score into the session behind it - would otherwise leave a
+   history.back() in flight with nothing of ours left to swallow it, and the
+   next close walked out of the app entirely. */
+let SHEET_HELD = false, SHEET_POPPING = false, SHEET_UNWIND = 0;
+function anySheet(){ return !!document.querySelector('.sheet-back'); }
+function holdSheetEntry(){
+  if(SHEET_HELD) return;
+  try{ history.pushState({bl:'sheet'}, ''); SHEET_HELD = true; }catch(e){}
+}
+function releaseSheetEntry(viaPop){
+  if(viaPop){
+    /* the browser has already taken the entry; if something is still open,
+       hold a fresh one so the next back press closes that too */
+    SHEET_HELD = false;
+    if(anySheet()) holdSheetEntry();
+    return;
+  }
+  setTimeout(()=>{
+    if(anySheet()) return;                  /* whatever opened next inherits it */
+    if(!SHEET_HELD) return;
+    SHEET_HELD = false; SHEET_UNWIND++;
+    try{ history.back(); }catch(e){}
+  }, 0);
+}
 function sheet(...children){
   const back = h('div',{className:'sheet-back', onClick:e=>{ if(e.target===back) back.remove(); }});
   const s = h('div',{className:'sheet', role:'dialog', 'aria-modal':'true', tabindex:'-1'},
@@ -2120,14 +2171,9 @@ function sheet(...children){
     gone = true;
     document.removeEventListener('keydown', onKey, true);
     drop();
-    if(SHEET_DEPTH > 0){
-      SHEET_DEPTH--;
-      /* handing back our own entry fires popstate; that one is ours and must
-         not be read as the user pressing back on the sheet underneath */
-      if(!SHEET_POPPING){ SHEET_UNWIND++; history.back(); }
-    }
+    releaseSheetEntry(SHEET_POPPING);
   };
-  try{ history.pushState({bl:'sheet'}, ''); SHEET_DEPTH++; }catch(e){}
+  holdSheetEntry();
   document.body.append(back);
   try{ s.focus({preventScroll:true}); }catch(e){}
   return back;
@@ -2135,7 +2181,7 @@ function sheet(...children){
 window.addEventListener('popstate', ()=>{
   if(SHEET_UNWIND > 0){ SHEET_UNWIND--; return; }
   const open = document.querySelectorAll('.sheet-back');
-  if(!open.length) return;
+  if(!open.length){ SHEET_HELD = false; return; }
   SHEET_POPPING = true;
   open[open.length-1].remove();
   SHEET_POPPING = false;
@@ -2977,7 +3023,23 @@ function tapeSheet(){
         hist.append(h('div',{className:'hr'},
           h('span',{className:'hd'}, fmtDay(pt.date)),
           h('span',{className:'hv'}, tidyM(pt.v) + ' ' + r.site.u),
-          h('span',{className:'hc'}, older ? deltaOf(Math.round((pt.v - older.v) * 10) / 10) : 'first')));
+          h('span',{className:'hc'}, older ? deltaOf(Math.round((pt.v - older.v) * 10) / 10) : 'first'),
+          /* a reading typed wrong is worse than no reading at all */
+          h('button',{className:'hx', 'aria-label':`Remove the ${r.site.n} reading from ${fmtDay(pt.date)}`,
+            onClick:()=>confirmSheet('Remove this reading?',
+              `${r.site.n} — ${tidyM(pt.v)} ${r.site.u} on ${fmtDay(pt.date)}. The rest of that day stays.`,
+              'REMOVE', ()=>{
+                const list = db.measures.slice();
+                const i = list.findIndex(m=>m.date === pt.date);
+                if(i >= 0){
+                  const v = Object.assign({}, list[i].v);
+                  delete v[r.site.k];
+                  if(Object.keys(v).length) list[i] = {id:list[i].id, date:pt.date, v};
+                  else list.splice(i, 1);          /* nothing left of that day */
+                  db.measures = list;
+                }
+                draw(r.site.k); render(); toast('Reading removed');
+              })},'✕')));
       });
       det.append(hist);
       body.append(h('tr',{className:'det'}, det));
@@ -3489,6 +3551,7 @@ function issueSheet(ym){
   const best = Math.max(0, ...m.weeks.map(w=>w.vol));
   const targets = monthsWithLogs()[0] === ym ? issueTargets(m) : [];
   const page = h('div',{});
+  let back;                        /* the box score can hand you to the session behind it */
 
   /* a closed issue is dated the morning after the month; a running one, today */
   const press = m.partial ? today()
@@ -3535,7 +3598,14 @@ function issueSheet(ym){
   board.append(h('div',{className:'iss-bt'},'The box score'));
   if(m.prs.length){
     const rows = m.prs.slice(0,6).map(p=>h('tr',{},
-      h('td',{}, p.lift, h('span',{className:'prtag'},'PR')),
+      /* noticing a wrong number here should be one tap from fixing it */
+      h('td',{}, h('button',{className:'site', title:'Open that session',
+        onClick:()=>{
+          const log = db.logs.find(l=>l.date === p.when && (l.ex||[]).some(e=>e.name === p.lift));
+          if(!log) return toast('That session is no longer in your history');
+          if(back) back.remove();
+          logSheet(log.id);
+        }}, p.lift, h('span',{className:'prtag'},'PR'))),
       h('td',{}, p.from ? String(p.from) : '—'),
       h('td',{className:'nw'}, String(p.to)),
       h('td',{}, fmtDay(p.when))));
@@ -3571,7 +3641,8 @@ function issueSheet(ym){
     onClick:()=>shareIssue(ym)},'⇪ SHARE THIS ISSUE'));
   page.append(h('div',{className:'iss-colo'},
     h('span',{},'Printed in your pocket'), h('span',{}, `Brologue · ${m.year}`)));
-  return sheet(page);
+  back = sheet(page);
+  return back;
 }
 
 /* ── History ───────────────────────────────────────────────────────── */
@@ -3660,11 +3731,12 @@ function prMap(logs){
   return marks;
 }
 function sessionCard(l, prs){
-  const card = h('div',{className:'card', style:{marginTop:'10px'}});
+  const card = h('div',{className:'card', style:{marginTop:'10px', cursor:'pointer'},
+    onClick:()=>logSheet(l.id)});
   const when = l.date ? fromDs(l.date).toLocaleDateString('en-US',{weekday:'short', day:'numeric', month:'short'}).toUpperCase() : '';
   card.append(h('div',{className:'log-h'},
     h('span',{className:'ln'}, l.name),
-    h('span',{className:'ld'}, when)));
+    h('span',{className:'ld'}, when, h('span',{className:'pen', title:'Tap to correct'},'✎'))));
   const nSets = (l.ex||[]).reduce((n,e)=>n+(e.sets||[]).length,0);
   card.append(h('div',{className:'meta'}, `${(l.ex||[]).length} exercises · ${nSets} sets · ${l.mins||0} min`));
   for(const e of (l.ex||[])){
@@ -3678,6 +3750,115 @@ function sessionCard(l, prs){
   }
   if(l.notes) card.append(h('div',{className:'log-note'}, '“' + l.notes + '”'));
   return card;
+}
+
+/* ── fixing what was logged ─────────────────────────────────────────
+   A session used to be written once and never touched again, so a weight
+   typed as 115 instead of 15 stood as a record for ever. Edits are made
+   on a copy and only land on SAVE, and everything downstream - records,
+   the monthly issue, the streak - is derived from the log, so correcting
+   a number here corrects it everywhere. ──────────────────────────────── */
+function logSheet(id){
+  const orig = db.logs.find(x=>x.id === id);
+  if(!orig) return null;
+  const draft = JSON.parse(JSON.stringify(orig));
+  draft.ex = draft.ex || [];
+  const page = h('div',{});
+  const back = sheet(page);
+
+  const commit = ()=>{
+    /* an exercise with nothing left in it is not an exercise */
+    const kept = draft.ex.filter(e=>(e.sets || []).length);
+    if(!kept.length){
+      confirmSheet('Nothing left in this session?',
+        'Every set has been removed. Saving now deletes the whole session from your history.',
+        'DELETE IT', ()=>{
+          db.logs = db.logs.filter(x=>x.id !== id);
+          back.remove(); render(); toast('Session deleted');
+        });
+      return;
+    }
+    draft.ex = kept;
+    db.logs = db.logs.map(x=>x.id === id ? draft : x);
+    back.remove(); render(); toast('Session corrected');
+  };
+
+  const draw = ()=>{
+    page.innerHTML = '';
+    page.append(
+      h('div',{className:'kick'},'Put it right'),
+      h('h3',{style:{marginTop:'4px'}}, draft.name || 'Session'),
+      h('div',{className:'howline'},
+        'Records, the monthly issue and your streak all read the log, so a number fixed here is '
+        + 'fixed everywhere.'));
+
+    const dateTxt = h('span',{}, longDay(draft.date));
+    const dateBtn = h('button',{className:'date-btn', type:'button', onClick:e=>{
+      e.preventDefault();
+      datePicker(draft.date, d=>{ draft.date = d; dateTxt.textContent = longDay(d); });
+    }});
+    dateBtn.append(dateTxt, h('span',{className:'ssel-arr'},'▾'));
+    const minsFld = numField({min:1, max:600, step:5, attrs:{value:String(draft.mins || 0)}});
+    minsFld.input.addEventListener('input',()=>{ draft.mins = parseInt(minsFld.input.value) || 0; });
+    page.append(
+      h('div',{className:'field'}, h('label',{},'Date'), dateBtn),
+      h('div',{className:'field'}, h('label',{},'Minutes'), minsFld));
+
+    const card = h('div',{className:'card'});
+    draft.ex.forEach((e, ei)=>{
+      const tmd = isTimed(e.name) || (e.sets || []).some(st=>st.t);
+      const block = h('div',{className:'edx'});
+      block.append(h('div',{className:'edx-h'},
+        h('span',{className:'edx-n'}, e.name),
+        h('button',{className:'edx-x', 'aria-label':'Remove ' + e.name + ' from this session',
+          onClick:()=>confirmSheet('Drop this exercise?',
+            `Every set of ${e.name} goes from this session.`, 'DROP IT',
+            ()=>{ draft.ex.splice(ei, 1); draw(); })},'✕')));
+      block.append(h('div',{className:'edx-u'},
+        h('span',{},'kg'), h('span',{}, tmd ? 'seconds' : 'reps')));
+      (e.sets || []).forEach((st, si)=>{
+        const wF = numField({min:0, step:2.5, attrs:{inputmode:'decimal', placeholder:'bw',
+          value: st.w === undefined || st.w === null ? '' : String(st.w)}});
+        wF.input.addEventListener('input',()=>{ st.w = wF.input.value; });
+        const rF = numField({min:0, step: tmd ? 5 : 1, attrs:{inputmode:'numeric',
+          value: st.r === undefined || st.r === null ? '' : String(st.r)}});
+        rF.input.addEventListener('input',()=>{ st.r = rF.input.value; });
+        block.append(h('div',{className:'edrow'},
+          h('button',{className:'snum'+(st.warm?' warm':''), title:'Warm-up set',
+            'aria-label':`Set ${si+1}${st.warm?', a warm-up':''} — tap to mark it a warm-up`,
+            onClick:()=>{ st.warm = st.warm ? undefined : true; draw(); }},
+            st.warm ? 'W' : 'S'+(si+1)),
+          wF, rF,
+          h('button',{className:'drop', 'aria-label':'Remove set ' + (si+1),
+            onClick:()=>{ e.sets.splice(si, 1); draw(); }},'⊖')));
+      });
+      block.append(h('button',{className:'cta ghost',
+        style:{marginTop:'8px', padding:'8px', fontSize:'10px'},
+        onClick:()=>{
+          const l = (e.sets || [])[(e.sets || []).length - 1];
+          e.sets = (e.sets || []).concat([{w: l ? l.w : '', r: l ? l.r : '', t: l && l.t}]);
+          draw();
+        }},'＋ ADD SET'));
+      card.append(block);
+    });
+    if(!draft.ex.length) card.append(h('div',{className:'empty'},'Nothing left in this session.'));
+    page.append(h('div',{className:'field'}, h('label',{},'What was logged'), card));
+
+    const note = h('textarea',{className:'inp', rows:'2', placeholder:'Session note…'});
+    note.value = draft.notes || '';
+    note.addEventListener('input',()=>{ draft.notes = note.value.trim(); });
+    page.append(h('div',{className:'field'}, h('label',{},'Note'), note));
+
+    page.append(h('button',{className:'cta', onClick:commit},'SAVE CORRECTIONS'));
+    page.append(h('button',{className:'cta ghost danger', onClick:()=>confirmSheet(
+      'Delete this session?',
+      `${draft.name || 'This session'} on ${fmtDay(draft.date)} goes for good, along with any `
+      + 'record it set.', 'DELETE',
+      ()=>{ db.logs = db.logs.filter(x=>x.id !== id); back.remove(); render(); toast('Session deleted'); })},
+      'DELETE THIS SESSION'));
+  };
+  draw();
+  return back;
 }
 
 /* ── Library ───────────────────────────────────────────────────────── */
