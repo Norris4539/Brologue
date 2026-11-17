@@ -259,6 +259,44 @@
   .bx-link button{border:1.5px solid var(--ink);background:var(--paper);padding:3px 8px;
     font-family:var(--small);font-size:8.5px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase}
   .bx-link button.on{background:var(--red);color:var(--paper);border-color:var(--red)}
+  /* ── the tape ── */
+  .tape{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+  .tape th{font-family:var(--small);font-size:7px;font-weight:700;letter-spacing:1.2px;
+    text-transform:uppercase;color:var(--tan);text-align:right;padding:2px 0 5px;
+    border-bottom:1.5px solid var(--ink)}
+  .tape th:first-child{text-align:left}
+  .tape td{padding:7px 0;border-bottom:1px dotted var(--pale);text-align:right;
+    font-variant-numeric:tabular-nums}
+  .tape td:first-child{text-align:left}
+  .tape tr:last-child td{border-bottom:0}
+  .tape .site{background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left}
+  .tape tr.open .site{color:var(--red)}
+  .tape .chev{color:var(--tan);font-size:9px;margin-left:5px}
+  .tape .now{font-family:var(--small);font-size:12px;font-weight:700;white-space:nowrap}
+  .tape .now.old{color:var(--tan);font-weight:400}
+  .tape .d{font-family:var(--small);font-size:10.5px;font-weight:700;white-space:nowrap;color:var(--faded)}
+  .tape .d.big{color:var(--red)}
+  .tape tr.open td{border-bottom:0;padding-bottom:2px}
+  .tape tr.det td{padding:0 0 10px;border-bottom:1px dotted var(--pale);text-align:left}
+  .howline{font-family:var(--serif);font-style:italic;font-size:11px;color:var(--tan);
+    line-height:1.45;margin-top:5px}
+  .hist{margin-top:8px;border-top:1px solid var(--line)}
+  .hist .hr{display:flex;justify-content:space-between;gap:8px;padding:4px 0;
+    font-family:var(--small);font-size:10.5px;border-bottom:1px dotted var(--line)}
+  .hist .hr:last-child{border-bottom:0}
+  .hist .hd{color:var(--tan);font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .hist .hv{font-weight:700;font-variant-numeric:tabular-nums}
+  .hist .hc{color:var(--faded);width:56px;text-align:right;font-variant-numeric:tabular-nums}
+  .mrow{padding:9px 0;border-bottom:1px dotted var(--pale)}
+  .mrow:last-child{border-bottom:0}
+  .mtop{display:flex;align-items:center;gap:8px}
+  .mtop .mn{flex:1;font-size:13.5px;min-width:0}
+  .mtop .last{font-family:var(--small);font-size:9px;font-weight:700;letter-spacing:.8px;
+    text-transform:uppercase;color:var(--tan);white-space:nowrap}
+  .mtop .unit{font-family:var(--small);font-size:9px;color:var(--tan);width:16px;flex:none}
+  .mrow .stp input{width:52px}
+  @media (max-width:349px){ .mtop .last{display:none} }
+
   /* estimated one-rep max over time */
   .spark{width:100%;height:64px;display:block;margin-top:8px}
   .spark-lbl{display:flex;justify-content:space-between;font-family:var(--small);font-size:8.5px;
@@ -1509,6 +1547,10 @@ const db = {
   set apiKey(v){ store.set('bl_api_key', v); },
   get custom(){ return store.get('bl_custom_workouts', []); },
   set custom(v){ store.set('bl_custom_workouts', v); },
+  get measures(){ return store.get('bl_measures', []); },
+  set measures(v){ store.set('bl_measures', v); },
+  get sites(){ return store.get('bl_sites', []); },        // sites switched on beyond the core
+  set sites(v){ store.set('bl_sites', v); },
   get coach(){ return store.get('bl_coach_history', []); },
   set coach(v){ store.set('bl_coach_history', v); },
   get live(){ return store.get('bl_active_session', null); },
@@ -1988,7 +2030,8 @@ async function updateBadge(){
 
 /* ── backup / restore — the only copy of this data lives in this browser ── */
 const APP_URL = location.origin + location.pathname;
-const BACKUP_KEYS = ['bl_schedule','bl_logs','bl_equipment','bl_custom_workouts','bl_coach_history'];
+const BACKUP_KEYS = ['bl_schedule','bl_logs','bl_equipment','bl_custom_workouts','bl_coach_history',
+  'bl_measures','bl_sites'];
 function backupPayload(){
   const data = {};
   for(const k of BACKUP_KEYS){
@@ -2008,7 +2051,7 @@ function downloadBackup(){
 }
 function backupCounts(data){
   const n = k => { try{ const v = JSON.parse(data[k] || '[]'); return Array.isArray(v) ? v.length : 0; }catch(e){ return 0; } };
-  return {logs:n('bl_logs'), sched:n('bl_schedule'), custom:n('bl_custom_workouts')};
+  return {logs:n('bl_logs'), sched:n('bl_schedule'), custom:n('bl_custom_workouts'), tape:n('bl_measures')};
 }
 function restoreFrom(file){
   const fr = new FileReader();
@@ -2030,7 +2073,9 @@ function restoreFrom(file){
     const c = backupCounts(payload.data);
     const when = String(payload.exportedAt || '').slice(0,10) || 'an unknown date';
     confirmSheet('Restore this backup?',
-      `Taken ${when} — ${c.logs} logged session${c.logs===1?'':'s'}, ${c.sched} scheduled entr${c.sched===1?'y':'ies'}, ${c.custom} custom workout${c.custom===1?'':'s'}.\n\nThis replaces everything currently on this device.`,
+      `Taken ${when} — ${c.logs} logged session${c.logs===1?'':'s'}, ${c.sched} scheduled entr${c.sched===1?'y':'ies'}, ${c.custom} custom workout${c.custom===1?'':'s'}`
+      + (c.tape ? `, ${c.tape} set${c.tape===1?'':'s'} of measurements` : '')
+      + `.\n\nThis replaces everything currently on this device.`,
       'RESTORE', ()=>{
         for(const k of BACKUP_KEYS) localStorage.removeItem(k);
         for(const k of Object.keys(payload.data))
@@ -2813,6 +2858,218 @@ function finishSession(s){
   else confirmSheet('Nothing ticked yet','You haven’t ticked a single set. Log this workout anyway?','FINISH ANYWAY', save);
 }
 
+/* ── the tape ───────────────────────────────────────────────────────
+   A tape measure says things the bar cannot. Every site carries the
+   instruction for taking it, because the only moment that instruction
+   matters is the moment you are standing there with the tape. ────── */
+const SITES = [
+  {k:'weight', n:'Bodyweight', u:'kg', core:true,
+   how:'First thing in the morning, after the bathroom, before you eat or drink.'},
+  {k:'rarm', n:'Right arm', u:'cm', core:true,
+   how:'Flexed, around the peak of the biceps, elbow bent to about 90°.'},
+  {k:'larm', n:'Left arm', u:'cm', core:true,
+   how:'Flexed, same elbow angle as the right — measure both or neither.'},
+  {k:'chest', n:'Chest', u:'cm', core:true,
+   how:'Across the nipple line, tape level under the armpits, at the end of a normal breath out.'},
+  {k:'waist', n:'Waist', u:'cm', core:true,
+   how:'Around the navel, standing relaxed. Do not hold it in and do not pull the tape tight.'},
+  {k:'thigh', n:'Thigh', u:'cm', core:true,
+   how:'Halfway between hip and knee, standing with your weight even on both feet.'},
+  {k:'shoulders', n:'Shoulders', u:'cm', core:true,
+   how:'Widest point around the deltoids, arms hanging, tape level all the way round.'},
+  {k:'bodyfat', n:'Body fat', u:'%', core:true,
+   how:'Calipers, a scale, whatever you have — keep using the same one. The trend is the point.'},
+  {k:'neck', n:'Neck', u:'cm',
+   how:'Middle of the neck, below the Adam’s apple, shoulders relaxed.'},
+  {k:'forearm', n:'Forearm', u:'cm',
+   how:'Widest point below the elbow, fist clenched, arm straight.'},
+  {k:'hips', n:'Hips', u:'cm',
+   how:'Widest point around the glutes, feet together.'},
+  {k:'calf', n:'Calf', u:'cm',
+   how:'Widest point, standing with your weight even on both feet.'},
+];
+const TAPE_RULE = 'Same time of day, same spot, tape snug but never pulled tight. '
+  + 'One reading means nothing; the line it makes over months means everything.';
+function siteOf(k){ return SITES.find(x=>x.k === k); }
+function measures(){ return db.measures.slice().sort((a,b)=>a.date < b.date ? -1 : a.date > b.date ? 1 : 0); }
+function siteSeries(k){
+  return measures().map(m=>({date:m.date, v:parseFloat(m.v && m.v[k])}))
+    .filter(x=>!isNaN(x.v));
+}
+/* the eight that always show, plus any you switched on or have filled in */
+function activeSites(){
+  const on = new Set(db.sites);
+  return SITES.filter(s=>s.core || on.has(s.k) || siteSeries(s.k).length);
+}
+function tidyM(n){ return String(Math.round(n * 10) / 10); }
+function deltaOf(d){ return d === null ? '—' : (d > 0 ? '▲ ' : d < 0 ? '▼ ' : '± ') + tidyM(Math.abs(d)); }
+function longDay(ds0){
+  return fromDs(ds0).toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'});
+}
+/* what the table draws: now, what it moved last time, what it has moved in total */
+function tapeRows(){
+  return activeSites().map(s=>{
+    const ser = siteSeries(s.k);
+    if(!ser.length) return {site:s, series:ser, now:null, dLast:null, dFirst:null};
+    const now = ser[ser.length-1], prev = ser[ser.length-2], first = ser[0];
+    return {site:s, series:ser, now,
+      dLast: prev ? Math.round((now.v - prev.v) * 10) / 10 : null,
+      dFirst: ser.length > 1 ? Math.round((now.v - first.v) * 10) / 10 : null};
+  }).filter(r=>r.now);
+}
+
+/* The table opens a row in place rather than pushing another sheet: the
+   whole point is comparing it with the rows around it. */
+function tapeSheet(){
+  const page = h('div',{});
+  const back = sheet(page);
+  const draw = (open)=>{
+    page.innerHTML = '';
+    const ms = measures(), rows = tapeRows();
+    page.append(
+      h('div',{className:'kick'}, ms.length
+        ? `Measured ${ms.length} time${ms.length===1?'':'s'} since ${fmtDay(ms[0].date)}`
+        : 'Nothing measured yet'),
+      h('h3',{style:{marginTop:'4px'}},'The Tape'));
+    if(!rows.length){
+      page.append(
+        h('div',{className:'empty', style:{textAlign:'left', padding:'14px 0 0'}},
+          'A tape measure tells you things the bar cannot. Take one set today and it becomes the '
+          + 'line everything after it is measured against — even if today’s numbers are not the '
+          + 'ones you wanted to see.'),
+        h('div',{className:'howline'}, TAPE_RULE),
+        h('button',{className:'cta', onClick:()=>{ back.remove(); measureSheet(); }},'＋ TAKE THE FIRST SET'));
+      return;
+    }
+    const last = ms[ms.length-1];
+    page.append(h('div',{className:'meta'},
+      `Last taken ${longDay(last.date)}`
+      + (ms.length > 1 ? ` — ${dayDiff(ms[0].date, last.date)} days in.` : '.')));
+    /* red marks one thing only: the site that has moved furthest overall */
+    const mover = rows.reduce((b, r)=>
+      (r.dFirst !== null && (!b || Math.abs(r.dFirst) > Math.abs(b.dFirst))) ? r : b, null);
+    const body = h('tbody',{},
+      h('tr',{}, h('th',{},'Site'), h('th',{},'Now'), h('th',{},'± last'), h('th',{},'± start')));
+    rows.forEach(r=>{
+      const isOpen = open === r.site.k;
+      body.append(h('tr',{className:isOpen?'open':''},
+        h('td',{}, h('button',{className:'site', 'aria-expanded':isOpen?'true':'false',
+          onClick:()=>draw(isOpen ? null : r.site.k)},
+          r.site.n, h('span',{className:'chev'}, isOpen ? '▾' : '▸'))),
+        h('td',{className:'now'+(r.now.date === last.date ? '' : ' old')},
+          tidyM(r.now.v) + ' ' + r.site.u),
+        h('td',{className:'d'}, deltaOf(r.dLast)),
+        h('td',{className:'d'+(mover && mover.site.k === r.site.k ? ' big' : '')}, deltaOf(r.dFirst))));
+      if(!isOpen) return;
+      const det = h('td',{colSpan:'4'});
+      det.append(h('div',{className:'howline'}, r.site.how));
+      if(r.series.length > 1){
+        const a = r.series[0], b = r.series[r.series.length-1];
+        det.append(sparkSvg(r.series,
+          `${r.site.n}, ${a.v} to ${b.v} ${r.site.u} over ${r.series.length} measurements`, 56));
+        det.append(h('div',{className:'spark-lbl'},
+          h('span',{}, `${tidyM(a.v)} ${r.site.u} · ${fmtDay(a.date)}`),
+          h('span',{}, `${tidyM(b.v)} ${r.site.u} · ${fmtDay(b.date)}`)));
+      }
+      const hist = h('div',{className:'hist'});
+      r.series.slice().reverse().forEach((pt, i, arr)=>{
+        const older = arr[i+1];
+        hist.append(h('div',{className:'hr'},
+          h('span',{className:'hd'}, fmtDay(pt.date)),
+          h('span',{className:'hv'}, tidyM(pt.v) + ' ' + r.site.u),
+          h('span',{className:'hc'}, older ? deltaOf(Math.round((pt.v - older.v) * 10) / 10) : 'first')));
+      });
+      det.append(hist);
+      body.append(h('tr',{className:'det'}, det));
+    });
+    page.append(h('table',{className:'tape'}, body));
+    if(rows.some(r=>r.now.date !== last.date))
+      page.append(h('div',{className:'howline'},
+        'Greyed numbers were taken before the last set — that site was not measured on '
+        + fmtDay(last.date) + '. Every change is against that site’s own previous reading.'));
+    page.append(h('div',{className:'howline'}, TAPE_RULE));
+    page.append(h('button',{className:'cta', onClick:()=>{ back.remove(); measureSheet(); }},
+      '＋ TAKE MEASUREMENTS'));
+  };
+  draw(null);
+  return back;
+}
+
+/* One date, every site you track, and the instruction beside each field.
+   Blank means not measured today - it is never recorded as a zero. */
+function measureSheet(){
+  let date = today();
+  const fields = {};
+  const card = h('div',{className:'card', style:{marginTop:0}});
+  const chips = h('div',{className:'chiprow', style:{marginTop:'10px'}});
+  const dateTxt = h('span',{}, longDay(date));
+  const dateBtn = h('button',{className:'date-btn', type:'button', onClick:e=>{
+    e.preventDefault();
+    datePicker(date, d=>{ date = d; dateTxt.textContent = longDay(d); drawFields(); });
+  }});
+  dateBtn.append(dateTxt, h('span',{className:'ssel-arr'},'▾'));
+
+  const drawFields = ()=>{
+    card.innerHTML = ''; chips.innerHTML = '';
+    const onDay = db.measures.find(m=>m.date === date);
+    for(const s of activeSites()){
+      const ser = siteSeries(s.k);
+      const prev = ser.filter(x=>x.date < date).slice(-1)[0];
+      const have = onDay && onDay.v && onDay.v[s.k] !== undefined ? String(onDay.v[s.k]) : '';
+      const f = numField({min:0, step:0.1, attrs:{inputmode:'decimal',
+        placeholder: prev ? tidyM(prev.v) : s.u, value: have}});
+      fields[s.k] = f;
+      card.append(h('div',{className:'mrow'},
+        h('div',{className:'mtop'},
+          h('span',{className:'mn'}, s.n),
+          prev ? h('span',{className:'last'}, 'last ' + tidyM(prev.v)) : null,
+          f,
+          h('span',{className:'unit'}, s.u)),
+        h('div',{className:'howline'}, s.how)));
+    }
+    const off = SITES.filter(s=>!activeSites().some(a=>a.k === s.k));
+    if(off.length){
+      chips.append(h('span',{style:{fontFamily:'var(--small)', fontSize:'9px', fontWeight:'700',
+        letterSpacing:'1.4px', textTransform:'uppercase', color:'var(--faded)',
+        width:'100%'}},'Also measure'));
+      off.forEach(s=>chips.append(h('button',{className:'chip', onClick:e=>{
+        e.preventDefault();
+        db.sites = db.sites.concat([s.k]);
+        drawFields();
+      }}, '＋ ' + s.n)));
+    }
+  };
+  drawFields();
+
+  const back = sheet(
+    h('div',{className:'kick'},'Hold the tape level'),
+    h('h3',{style:{marginTop:'4px'}},'Take measurements'),
+    h('div',{className:'howline'}, TAPE_RULE),
+    h('div',{className:'field'}, h('label',{},'Date'), dateBtn),
+    h('div',{className:'field'}, h('label',{},'Measurements'), card),
+    chips,
+    h('button',{className:'cta', onClick:()=>{
+      const v = {};
+      for(const s of activeSites()){
+        const raw = (fields[s.k].input.value || '').trim();
+        if(raw === '') continue;
+        const n = parseFloat(raw);
+        if(!isNaN(n) && n > 0) v[s.k] = Math.round(n * 10) / 10;
+      }
+      if(!Object.keys(v).length) return toast('Nothing filled in yet');
+      const list = db.measures.slice();
+      const i = list.findIndex(m=>m.date === date);
+      /* measuring a day twice tops up that day rather than starting a rival
+         entry - what you filled in wins, what you left blank is left alone */
+      if(i >= 0) list[i] = {id:list[i].id, date, v:Object.assign({}, list[i].v, v)};
+      else list.push({id:uid(), date, v});
+      db.measures = list;
+      back.remove(); render();
+      toast(i >= 0 ? `${fmtDay(date)} updated` : 'Measurements saved');
+    }},'SAVE THE TAPE'));
+  return back;
+}
+
 /* ── the monthly issue ─────────────────────────────────────────────
    Everything below is a pure reduction over db.logs. Nothing is stored,
    so an old issue is regenerated, not archived — the paper always
@@ -3328,6 +3585,7 @@ function HistoryScreen(){
   if(!logs.length){
     body.append(h('div',{className:'card'},
       h('div',{className:'empty'},'No workouts logged yet.\nFinish one and it shows up here.')));
+    body.append(tapeBand());
     wrap.append(body); return wrap;
   }
   const now = new Date(), ym = now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
@@ -3338,6 +3596,8 @@ function HistoryScreen(){
     h('div',{className:'stat'}, h('div',{className:'v'},String(thisMonth)), h('div',{className:'k'},'This month')),
     h('div',{className:'stat'}, h('div',{className:'v'}, volume>=1000 ? (volume/1000).toFixed(1)+'t' : Math.round(volume)+'kg'),
       h('div',{className:'k'},'Volume lifted'))));
+
+  body.append(tapeBand());
 
   /* the list groups itself by month; each header is the way into that issue.
      Three newest months open, everything older collapses to its spine. */
@@ -3367,6 +3627,27 @@ function HistoryScreen(){
 }
 /* one pass over the log marks every set that was a record at the time -
    the old per-row lookup re-parsed the whole log for each exercise */
+/* the tape, said in one line: the three most recent sites and what they did */
+function tapeBand(){
+  const rows = tapeRows();
+  const ms = measures();
+  /* bodyweight, then whatever has travelled furthest - two arms within a
+     millimetre of each other say nothing worth a line */
+  const say = r => (r.site.k === 'weight' ? '' : r.site.n.toLowerCase() + ' ')
+    + tidyM(r.now.v) + (r.site.u === 'kg' ? ' kg' : r.site.u === '%' ? '%' : '');
+  const wt = rows.find(r=>r.site.k === 'weight');
+  const movers = rows.filter(r=>r.site.k !== 'weight' && r.dFirst !== null)
+    .sort((a, b)=>Math.abs(b.dFirst) - Math.abs(a.dFirst));
+  const bits = (wt ? [wt] : []).concat(movers.slice(0, wt ? 2 : 3))
+    .concat(rows.filter(r=>r.site.k !== 'weight' && r.dFirst === null)).slice(0, 3).map(say);
+  return h('button',{className:'issue-band', onClick:tapeSheet},
+    h('div',{className:'ib-t'},
+      h('span',{className:'ib-m'},'The Tape'),
+      h('span',{className:'ib-v'}, ms.length ? 'Taken ' + fmtDay(ms[ms.length-1].date) : 'Never taken')),
+    h('div',{className:'ib-b'},
+      h('span',{className:'ib-s'}, rows.length ? bits.join(' · ') : 'Weight, arms, waist — nothing yet'),
+      h('span',{className:'ib-r'}, rows.length ? 'Read →' : 'Take →')));
+}
 function prMap(logs){
   const best = {}, marks = new Set();
   for(const l of logs.slice().sort((a,b)=>(a.finishedAt||0)-(b.finishedAt||0)))
@@ -3655,6 +3936,30 @@ function plateSheet(startWeight, onUse){
   return back;
 }
 
+/* one line over time, drawn for anything with a date and a number */
+function sparkSvg(pts, label, h0){
+  const W = 300, H = h0 || 64;
+  const lo = Math.min(...pts.map(p=>p.v)), hi = Math.max(...pts.map(p=>p.v));
+  const span = (hi - lo) || 1;
+  const x = i => (pts.length === 1 ? W / 2 : (i / (pts.length - 1)) * (W - 6) + 3);
+  const y = v => H - 6 - ((v - lo) / span) * (H - 14);
+  const line = pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
+  const area = line + ` L${x(pts.length-1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
+  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('class','spark');
+  svg.setAttribute('preserveAspectRatio','none');
+  svg.setAttribute('role','img');
+  svg.setAttribute('aria-label', label);
+  const el = (t, at)=>{ const n = document.createElementNS('http://www.w3.org/2000/svg',t);
+    for(const k in at) n.setAttribute(k, at[k]); return n; };
+  svg.append(el('path',{d:area, fill:'rgba(179,49,28,.13)'}));
+  svg.append(el('path',{d:line, fill:'none', stroke:'#b3311c', 'stroke-width':'2',
+    'stroke-linejoin':'round', 'stroke-linecap':'round'}));
+  svg.append(el('circle',{cx:x(pts.length-1), cy:y(pts[pts.length-1].v), r:'3.5', fill:'#b3311c'}));
+  return svg;
+}
+
 /* Epley: a comparable number across different rep counts */
 function e1rm(w, r){ return w * (1 + (r || 1) / 30); }
 function oneRmChart(name){
@@ -3669,26 +3974,9 @@ function oneRmChart(name){
     }).filter(x => x.v > 0);
   if(pts.length < 2) return null;                      // one dot is not a trend
 
-  const W = 300, H = 64, lo = Math.min(...pts.map(p=>p.v)), hi = Math.max(...pts.map(p=>p.v));
-  const span = (hi - lo) || 1;
-  const x = i => (pts.length === 1 ? W / 2 : (i / (pts.length - 1)) * (W - 6) + 3);
-  const y = v => H - 6 - ((v - lo) / span) * (H - 14);
-  const line = pts.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(' ');
-  const area = line + ` L${x(pts.length-1).toFixed(1)},${H} L${x(0).toFixed(1)},${H} Z`;
-  const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.setAttribute('class','spark');
-  svg.setAttribute('preserveAspectRatio','none');
-  svg.setAttribute('role','img');
-  svg.setAttribute('aria-label',
+  const svg = sparkSvg(pts,
     `Estimated one-rep max, ${pts[0].v} to ${pts[pts.length-1].v} kilograms over ${pts.length} sessions`);
-  const el = (t, at)=>{ const n = document.createElementNS('http://www.w3.org/2000/svg',t);
-    for(const k in at) n.setAttribute(k, at[k]); return n; };
-  svg.append(el('path',{d:area, fill:'rgba(179,49,28,.13)'}));
-  svg.append(el('path',{d:line, fill:'none', stroke:'#b3311c', 'stroke-width':'2',
-    'stroke-linejoin':'round', 'stroke-linecap':'round'}));
   const lastP = pts[pts.length-1];
-  svg.append(el('circle',{cx:x(pts.length-1), cy:y(lastP.v), r:'3.5', fill:'#b3311c'}));
   return h('div',{},
     h('div',{className:'meta', style:{marginTop:'8px'}},'Estimated 1RM'),
     svg,
@@ -4050,6 +4338,18 @@ function trainingDigest(){
     ...weeklyVolumes(4).map(w=>`- week of ${w.week}: ${w.sess} session${w.sess===1?'':'s'}, ${w.vol} kg volume`));
   return out.join('\n').slice(0, 5000);
 }
+/* the coach cannot answer "am I actually gaining" without these */
+function tapeDigest(){
+  const rows = tapeRows();
+  if(!rows.length) return '';
+  const out = ['', 'BODY MEASUREMENTS (latest, and the change since the first entry):'];
+  for(const r of rows){
+    const first = r.series[0];
+    out.push(`- ${r.site.n}: ${tidyM(r.now.v)} ${r.site.u} on ${r.now.date}`
+      + (r.dFirst !== null ? ` (${r.dFirst > 0 ? '+' : ''}${tidyM(r.dFirst)} since ${tidyM(first.v)} on ${first.date})` : ''));
+  }
+  return out.join('\n');
+}
 function coachSystemPrompt(){
   const sched = db.schedule.slice(0,8).map(e=>{ const w=getWorkout(e.workoutId); return (w?w.name:'?')+' ('+recurLine(e)+')'; }).join('; ') || 'nothing scheduled';
   return `You are Brologue Coach — a warm, motivating, no-nonsense fitness and nutrition coach inside the Brologue workout app. Give practical, specific, safe advice on training, meal plans, and diet. Use short sections and bullet lists; keep answers tight and actionable; plain text only (no markdown tables). Add a brief note to consult a professional for medical issues when relevant.
@@ -4057,7 +4357,7 @@ function coachSystemPrompt(){
 User context — available equipment: ${db.equipment.length?db.equipment.join(', '):'bodyweight only'}. Current schedule: ${sched}. Current streak: ${streakCount()} days.
 
 TRAINING LOG
-${trainingDigest()}
+${trainingDigest()}${tapeDigest()}
 
 Work from that log. Name real lifts, weights and dates back to the user, and call out the stalls, jumps and gaps you can actually see in it. Never invent a number that is not listed above — if the log does not cover something, say so and ask.`;
 }
