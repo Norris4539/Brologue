@@ -383,7 +383,11 @@
 
   /* today's target, read out of the log */
   .target{display:flex;align-items:center;gap:10px;margin-top:8px;padding:8px 10px;
-    border:2px solid var(--ink);background:var(--paper2)}
+    border:2px solid var(--ink);background:var(--paper2);width:100%;text-align:left}
+  .target .tg{margin-left:auto;flex:none;color:var(--tan);font-size:12px}
+  .goal-now{font-family:var(--small);font-size:10px;font-weight:700;letter-spacing:1px;
+    text-transform:uppercase;color:var(--faded);background:var(--paper2);
+    border:1.5px dashed var(--tan);padding:8px 10px;margin-top:10px}
   .target .tw{font-family:var(--wood);font-size:21px;letter-spacing:.5px;line-height:1;white-space:nowrap}
   .target .tn{font-family:var(--serif);font-style:italic;font-size:11px;color:var(--faded);line-height:1.3}
   .target.up{border-color:var(--red)}
@@ -1572,6 +1576,8 @@ const db = {
   set apiKey(v){ store.set('bl_api_key', v); },
   get custom(){ return store.get('bl_custom_workouts', []); },
   set custom(v){ store.set('bl_custom_workouts', v); },
+  get goals(){ return store.get('bl_goals', []); },        // [{name|'*', reps, on, step}]
+  set goals(v){ store.set('bl_goals', v); },
   get measures(){ return store.get('bl_measures', []); },
   set measures(v){ store.set('bl_measures', v); },
   get sites(){ return store.get('bl_sites', []); },        // sites switched on beyond the core
@@ -1761,30 +1767,59 @@ function clearedRange(sets, hi){
   const w = workingSets(sets);
   return w.length > 0 && w.every(st=>(parseFloat(st.r)||0) >= hi);
 }
+/* the heaviest working set carried the reps */
+function clearedTop(sets, need){
+  const t = topSet(sets);
+  return !!t && (parseFloat(t.r) || 0) >= need;
+}
+/* ── your own rule for earning a heavier bar ────────────────────────
+   Without one the workout's own rep target decides, which is what the
+   app has always done. Set a goal and it takes over: this many reps,
+   on every set or just the top one, then this much more weight. A goal
+   on one lift beats the default; the default beats the workout. ──── */
+function goalFor(name){
+  const g = db.goals;
+  return g.find(x=>x.name === name) || g.find(x=>x.name === '*') || null;
+}
+function goalOwn(name){ return db.goals.find(x=>x.name === name) || null; }
+function goalText(g, name){
+  if(!g) return 'Following the workout’s own rep target';
+  const step = g.step || (name && name !== '*' ? loadStep(name, 40) : 2.5);
+  return `${g.reps} reps on ${g.on === 'top' ? 'the top set' : 'every set'}, then +${tidyM(step)} kg`;
+}
 function overloadTarget(name, repsSpec){
   if(isTimed(name)) return null;
+  const goal = goalFor(name);
   const range = repRange(repsSpec);
-  if(!range) return null;
+  const need = goal ? goal.reps : (range ? range.hi : null);
+  if(!need) return null;
+  const every = !goal || goal.on !== 'top';
+  const where = every ? 'every set' : 'your top set';
+  const met = sets => every ? clearedRange(sets, need) : clearedTop(sets, need);
   const hist = logsFor(name);                          // newest first
   if(!hist.length) return null;
   const lw = topWeight(hist[0].sets);
   if(!lw) return null;                                 // bodyweight — nothing to load
-  if(clearedRange(hist[0].sets, range.hi)){
-    const w = Math.round((lw + loadStep(name, lw)) * 10) / 10;
-    return {kind:'up', weight:w, from:lw,
-      note:`You cleared ${range.hi} on every set at ${lw} kg. Take the jump.`};
+  const step = (goal && goal.step) || loadStep(name, lw);
+  if(met(hist[0].sets)){
+    const w = Math.round((lw + step) * 10) / 10;
+    return {kind:'up', weight:w, from:lw, goal:!!goal,
+      note:`You cleared ${need} on ${where} at ${lw} kg. Take the jump.`};
   }
-  let stuck = 0;                                       // sessions in a row at this weight, range unmet
+  let stuck = 0;                                       // sessions in a row at this weight, goal unmet
   for(const hh of hist){
-    if(topWeight(hh.sets) >= lw && !clearedRange(hh.sets, range.hi)) stuck++;
+    /* a goal set this week cannot have been stalled against since August:
+       changing the rule starts the count again */
+    if(goal && goal.since && hh.date < goal.since) break;
+    if(topWeight(hh.sets) >= lw && !met(hh.sets)) stuck++;
     else break;
   }
-  if(stuck >= 3) return {kind:'back', weight:Math.max(tidyWeight(lw * 0.9), 1), from:lw,
-    note:`Three sessions stalled at ${lw} kg. Drop 10%, rebuild, come back for it.`};
-  if(stuck >= 2) return {kind:'hold', weight:lw, from:lw,
-    note:`Second crack at ${lw} kg. Own every rep before you add a plate.`};
-  return {kind:'hold', weight:lw, from:lw,
-    note:`Hit ${range.hi} on all sets at ${lw} kg to earn the next jump.`};
+  if(stuck >= 3) return {kind:'back', weight:Math.max(tidyWeight(lw * 0.9), 1), from:lw, goal:!!goal,
+    note:`Three sessions at ${lw} kg without ${need} on ${where}. Drop 10%, rebuild, come back for it.`};
+  if(stuck >= 2) return {kind:'hold', weight:lw, from:lw, goal:!!goal,
+    note:`Second crack at ${need} on ${where} at ${lw} kg. Own every rep before you add a plate.`};
+  return {kind:'hold', weight:lw, from:lw, goal:!!goal,
+    note:`Hit ${need} on ${where} at ${lw} kg to earn +${tidyM(step)} kg.`};
 }
 
 /* ── the one button's label follows whatever is on today's card ──── */
@@ -2056,7 +2091,7 @@ async function updateBadge(){
 /* ── backup / restore — the only copy of this data lives in this browser ── */
 const APP_URL = location.origin + location.pathname;
 const BACKUP_KEYS = ['bl_schedule','bl_logs','bl_equipment','bl_custom_workouts','bl_coach_history',
-  'bl_measures','bl_sites'];
+  'bl_measures','bl_sites','bl_goals'];
 function backupPayload(){
   const data = {};
   for(const k of BACKUP_KEYS){
@@ -2723,9 +2758,11 @@ function SessionScreen(){
     if(prev) body.append(h('div',{className:'lastline'},
       `Last time · ${prev.sets.map(st=>setLabel(st, timed)).join(', ')}`));
     const target = overloadTarget(ex.name, ex.reps);
-    if(target) body.append(h('div',{className:'target '+target.kind},
+    if(target) body.append(h('button',{className:'target '+target.kind,
+      title:'Set your goal for this lift', onClick:()=>goalSheet(ex.name)},
       h('span',{className:'tw'}, (target.kind==='up' ? '↑ ' : target.kind==='back' ? '↓ ' : '→ ') + target.weight + ' kg'),
-      h('span',{className:'tn'}, target.note)));
+      h('span',{className:'tn'}, target.note),
+      h('span',{className:'tg', 'aria-hidden':'true'},'✎')));
 
     const card = h('div',{className:'card', style:{marginTop:'10px'}});
     const drawSets = ()=>{
@@ -2902,6 +2939,55 @@ function finishSession(s){
   };
   if(s.ex.some(e=>e.sets.some(x=>x.done))) save();
   else confirmSheet('Nothing ticked yet','You haven’t ticked a single set. Log this workout anyway?','FINISH ANYWAY', save);
+}
+
+/* The rule for earning a heavier bar, written by you. Set on one lift it
+   covers that lift; set on the default it covers everything you have not
+   given its own. */
+function goalSheet(name){
+  const isDef = name === '*';
+  const own = goalOwn(name);
+  const base = own || (isDef ? null : goalFor(name));
+  let on = base && base.on ? base.on : 'all';
+  const repsFld = numField({min:1, max:50, step:1,
+    attrs:{inputmode:'numeric', value:String(base ? base.reps : 12)}});
+  const stepFld = numField({min:0.5, max:25, step:0.5,
+    attrs:{inputmode:'decimal',
+      value:String(base && base.step ? base.step : (isDef ? 2.5 : loadStep(name, 40)))}});
+  const seg = h('div',{className:'cal-seg'});
+  [['all','Every set'],['top','Top set']].forEach(([k, label])=>{
+    seg.append(h('button',{className:(on === k ? 'on' : ''), onClick:()=>{
+      on = k;
+      seg.querySelectorAll('button').forEach((b, i)=>b.classList.toggle('on', ['all','top'][i] === k));
+    }}, label));
+  });
+  const save = ()=>{
+    const reps = Math.max(1, Math.min(50, parseInt(repsFld.input.value) || 12));
+    const step = Math.max(0.5, Math.min(25, parseFloat(stepFld.input.value) || 2.5));
+    /* stamped, so the stall count starts from the day the rule changed */
+    db.goals = db.goals.filter(g=>g.name !== name).concat([{name, reps, on, step, since:today()}]);
+    back.remove(); render();
+    toast(isDef ? 'Default goal set' : `Goal set for ${name}`);
+  };
+  const back = sheet(
+    h('div',{className:'kick'},'Earning the next jump'),
+    h('h3',{style:{marginTop:'4px'}}, isDef ? 'Default goal' : name),
+    h('div',{className:'howline'}, isDef
+      ? 'The rule for every lift you have not given one of its own. Without it, each workout’s '
+        + 'own rep target decides when the weight goes up.'
+      : 'Clear this many reps and the app puts a heavier bar in front of you. Until then it '
+        + 'holds the weight, and after three stalled sessions it suggests backing off 10%.'),
+    h('div',{className:'goal-now'}, 'Now · ' + goalText(goalFor(name), name)),
+    h('div',{className:'field'}, h('label',{},'Reps to clear'), repsFld),
+    h('div',{className:'field'}, h('label',{},'On'), seg),
+    h('div',{className:'field'}, h('label',{},'Then add (kg)'), stepFld),
+    h('button',{className:'cta', onClick:save}, isDef ? 'SAVE DEFAULT' : 'SAVE GOAL'),
+    own ? h('button',{className:'cta ghost danger', onClick:()=>{
+      db.goals = db.goals.filter(g=>g.name !== name);
+      back.remove(); render();
+      toast(isDef ? 'Default cleared' : 'Back to the default');
+    }}, isDef ? 'CLEAR THE DEFAULT' : 'USE THE DEFAULT INSTEAD') : null);
+  return back;
 }
 
 /* ── the tape ───────────────────────────────────────────────────────
@@ -4346,6 +4432,11 @@ function exerciseSheet(ex){
     (!ok && ex.sub) ? h('div',{className:'swapbox'},
       h('div',{className:'k'},'You don’t have this equipment'),
       h('div',{className:'v'},'↳ Try instead: '+ex.sub)) : null,
+    h('div',{className:'sec'},'Earning the next jump'),
+    h('button',{className:'log-e', style:{width:'100%', textAlign:'left', background:'none', border:0},
+      onClick:()=>{ back.remove(); goalSheet(ex.name); }},
+      h('span',{}, goalOwn(ex.name) ? 'Your goal' : (goalFor(ex.name) ? 'Default goal' : 'No goal set')),
+      h('span',{className:'lw'}, goalText(goalFor(ex.name), ex.name), ' ✎')),
     h('div',{className:'sec'},'Your history'),
     oneRmChart(ex.name),
     hs.length
@@ -4747,6 +4838,12 @@ function settingsSheet(){
         `${db.logs.length} logged session${db.logs.length===1?'':'s'} and ${db.custom.length} custom workout${db.custom.length===1?'':'s'} live only in this browser — clearing site data or changing phones wipes them. `
         + (lastBk ? `Last backup: ${lastBk}.` : 'Never backed up.')
         + ' Your API key is never written to the file.')),
+    h('div',{className:'field'}, h('label',{},'When the weight goes up'),
+      h('button',{className:'cta ghost', style:{marginTop:0}, onClick:()=>{ back.remove(); goalSheet('*'); }},
+        '⇧ PROGRESSION GOAL'),
+      h('div',{className:'meta', style:{marginTop:'6px'}},
+        goalFor('*') ? 'Every lift without its own goal: ' + goalText(goalFor('*'), '*') + '.'
+          : 'No default yet — each workout’s own rep target decides when the weight goes up.')),
     h('div',{className:'field'}, h('label',{},'Reminders'),
       remindersBlock(()=>{ back.remove(); settingsSheet(); })),
     h('div',{className:'field'}, h('label',{},'Anthropic API key — for the Claude coach'), keyInp,
